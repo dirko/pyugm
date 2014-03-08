@@ -38,11 +38,7 @@ class Factor:
 
         return result_factor
 
-    def multiply(self, other_factor, divide=False):
-        # print self.data.shape
-        # print other_factor.axis_to_variable
-        # print self.axis_to_variable
-        # print [other_factor.axis_to_variable[other_axis] for other_axis in xrange(len(other_factor.data.shape))]
+    def multiply(self, other_factor, divide=False, update_inplace=True):
         other_variable_order = [other_factor.axis_to_variable[other_axis]
                                 for other_axis in xrange(len(other_factor.data.shape))]
         variables_in_self_not_in_other = [variable[0] for variable in self.variables
@@ -53,24 +49,34 @@ class Factor:
         new_shape = [card for card in other_factor.data.shape] + [1 for var in variables_in_self_not_in_other]
         reshaped_other_data = other_factor.data.reshape(new_shape)
         reordered_other_data = reshaped_other_data.transpose(new_axis_order)
-        # print 'new_axis_order', new_axis_order
-        # print 'reshaped_other_data.shape', reshaped_other_data.shape
-        # print 'reordered_other_data.shape', reordered_other_data.shape
 
-        # print 'zipped shapes', [s for s in zip(self.data.shape, reordered_other_data.shape)]
         tile_shape = [self_card if self_card != other_card else 1
                       for self_card, other_card in zip(self.data.shape, reordered_other_data.shape)]
-        # print 'tile_shape', tile_shape
+
         tiled_other_data = np.tile(reordered_other_data, tile_shape)
-        # print 'tile_other_data', tiled_other_data
-        # print 'res'
-        # print self.data * tiled_other_data
-        result_factor = Factor(self.variables, 'placeholder')
+
         if not divide:
-            result_factor.data = self.data * tiled_other_data
+            result_data = self.data * tiled_other_data
         else:
-            result_factor.data = self.data / tiled_other_data
-        return result_factor
+            result_data = self.data / tiled_other_data
+        if update_inplace:
+            self.data = result_data
+        else:
+            result_factor = Factor(self.variables, 'placeholder')
+            result_factor.data = result_data
+            return result_factor
+
+    def get_potential(self, variable_list):
+        """
+        Return the entry in the table for the assignment of variables.
+        variable_list: list of pairs. Each pair is (variable_name, assignment)
+        """
+        array_position = [slice(self.cardinalities[self.axis_to_variable[axis]])
+                          for axis in xrange(len(self.variables))]
+        for var, assignment in variable_list:
+            if var in self.cardinalities:
+                array_position[self.variable_to_axis[var]] = assignment
+        return self.data[tuple(array_position)]
 
     def __str__(self):
         return '{' + ', '.join(str(var) for var, card in self.variables) + '}'

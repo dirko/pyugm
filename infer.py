@@ -1,12 +1,16 @@
+from factor import Factor
+from Queue import PriorityQueue, Queue
 import numpy as np
 
 
 class Model:
     def __init__(self, factor_list):
-        self.factors = []
-        self.cardinalities = dict()
-        self.variables_to_factors = dict()
-        self.edges = set()
+        self.factors = []  # factor objects
+        self.cardinalities = dict()  # variable name to int
+        self.variables_to_factors = dict()  # variable name to factor
+        self.edges = set()  # pairs of factors
+        self.separator_potentials = dict()  # edge to pairs of separator potentials
+        self.belief_update_queue = PriorityQueue()  # edges to update beliefs for
 
         for factor in factor_list:
             self.add_factor(factor)
@@ -72,3 +76,112 @@ class Model:
         else:
             max_sepset = max(sepset_sizes, key=lambda x: x[1])
         return max_sepset[0]
+
+    def set_up_belief_update(self):
+        """ Initialise separator potentials to 1 """
+        for edge in list(self.edges):
+            factor1, factor2 = edge
+            sepset = factor1.variable_set.intersection(factor2.variable_set)
+            separator_variables = [(variable, factor1.cardinalities[variable]) for variable in list(sepset)]
+            # NOTE: will want to set this up more generically for other kinds of factors
+            separator_factors = (Factor(separator_variables), Factor(separator_variables))
+            self.separator_potentials[edge] = separator_factors
+            self.separator_potentials[(edge[1], edge[0])] = separator_factors
+
+        # Sets up priority queue of edges to update
+        # NOTE: Should be possible to set up scheme here so that if the graph is a tree only a forward
+        # and backward pass will be necessary.
+        for edge in list(self.edges):
+            priority = -np.inf  # highest priority
+            self.belief_update_queue.put((priority, edge))
+
+    def update_belief(self, edge):
+        old_separators = self.separator_potentials[edge]
+        variables_to_keep = old_separators[0].variable_set
+
+        # Phi** = Sum Psi
+        new_separator = edge[0].marginalize(variables_to_keep)
+        # A = Phi*/Phi
+        new_separator_divided = new_separator.multiply(old_separators[0], divide=True, update_inplace=False)
+        # Psi** = Psi* x A
+        print edge[0], '->', edge[1]
+        print new_separator.data, '/', old_separators[0].data, '=', new_separator_divided.data
+        edge[1].multiply(new_separator_divided)
+
+        new_separators = (new_separator, old_separators[0])
+        reverse_edge = (edge[1], edge[0])
+        self.separator_potentials[edge] = new_separators
+        self.separator_potentials[reverse_edge] = new_separators
+
+        num_cells = np.prod(new_separator.data.shape) * 1.0
+        average_change_per_cell = abs(new_separator.data - old_separators[0].data).sum() / num_cells
+        print average_change_per_cell
+        print new_separator.data
+
+        return average_change_per_cell
+
+    def update_beliefs(self, number_of_updates=100, number_of_zero_updates_before_complete_pass=2, delta=10**-10):
+        total_average_change_per_cell = 0
+        number_of_consecutive_zero_updates = 0
+        for update_num in xrange(number_of_updates):
+            print '-------new update------'
+            priority, edge = self.belief_update_queue.get_nowait()
+
+            average_change_per_cell = self.update_belief(edge)
+
+            # Update queue
+            reverse_edge = (edge[1], edge[0])
+            self.belief_update_queue.put((-average_change_per_cell, reverse_edge))
+            total_average_change_per_cell += average_change_per_cell
+
+            if average_change_per_cell == 0:
+                number_of_consecutive_zero_updates += 1
+
+            if number_of_consecutive_zero_updates == number_of_zero_updates_before_complete_pass:
+                edge_list = list(self.edges)
+                complete_pass_change = 0
+                for edge in edge_list:
+                    complete_pass_change += self.update_belief(edge)
+                edge_list.reverse()
+                for edge in edge_list:
+                    reverse_edge = (edge[1], edge[0])
+                    complete_pass_change += self.update_belief(reverse_edge)
+                if complete_pass_change < delta:
+                    break
+                else:
+                    number_of_consecutive_zero_updates = 0
+
+        return total_average_change_per_cell / number_of_updates
+
+    def exhaustive_enumeration(self):
+        """ Compute the complete probability table by enumerating all variable instantiations """
+        variables = [(key, value) for key, value in self.cardinalities.items()]
+        table_shape = [cardinality for cardinality, variable_name in variables]
+        table_size = np.prod(table_shape)
+        if table_size > 10**7:
+            raise Exception('Model too large for exhaustive enumeration')
+
+        new_factor = Factor(variables)
+        instantiation = [[var[0], 0] for var in variables]
+
+        def tick_instantiation(i):
+            """ Return the next instantiation given previous one i """
+            i[0][1] += 1
+            i_done = False
+            for variable_counter in xrange(len(i) - 1):
+                if i[variable_counter][1] >= variables[variable_counter][1]:  # Instantiation > than cardinality
+                    i[variable_counter][1] = 0
+                    i[variable_counter + 1][1] += 1
+            if i[-1][1] >= variables[-1][1]:
+                i_done = True
+            return i_done, i
+
+        done = False
+        while not done:
+            for factor in self.factors:
+                potential_value = factor.get_potential([tuple(var) for var in instantiation])
+                new_factor.data[tuple(var[1] for var in instantiation)] *= potential_value
+            done, instantiation = tick_instantiation(instantiation)
+
+        return new_factor
+

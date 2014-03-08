@@ -211,8 +211,61 @@ class TestInference(unittest.TestCase):
         assert_array_almost_equal(b.data, final_b.data)
         self.assertAlmostEqual(change1, 0, delta=10**-10)
 
-    def test_belief_update_larger(self):
+    def test_belief_update_larger_tree(self):
+        a = Factor([0, 1], data=np.array([[1, 2], [2, 2]]))
+        b = Factor([1, 2], data=np.array([[3, 2], [1, 2]]))
+        c = Factor([2, 3], data=np.array([[1, 2], [3, 4]]))
+        d = Factor([3], data=np.array([2, 1]))
+        e = Factor([0], data=np.array([4, 1]))
+        f = Factor([2], data=np.array([1, 2]))
+        #
+        # a{0 1} - b{1 2} - c{2 3} - d{3}
+        #    |       |
+        # e{0}     f{2}
+        #
+        model = Model([a, b, c, d, e, f])
+        model.build_graph()
 
+        exhaustive_answer = model.exhaustive_enumeration()  # do first because update_beliefs changes the factors
+
+        model.set_up_belief_update()
+        for epoch in xrange(5):
+            change = model.update_beliefs(number_of_updates=20)
+            print epoch, '==============================', change, '==============================='
+        for factor in model.factors:
+            print factor, np.sum(factor.data)
+
+        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(a.data))
+        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(d.data))
+
+    def test_exhaustive_enumeration(self):
+        a = Factor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))
+        b = Factor([(0, 2), (2, 2)], data=np.array([[1, 2], [2, 1]]))
+        # 0 1 2 |
+        #-------+--------
+        # 0 0 0 | 1x1=1
+        # 0 0 1 | 1x2=2
+        # 0 1 0 | 2x1=2
+        # 0 1 1 | 2x2=4
+        # 0 2 0 | 3x1=3
+        # 0 2 1 | 3x2=6
+        # 1 0 0 | 4x2=8
+        # 1 0 1 | 4x1=4
+        # 1 1 0 | 5x2=10
+        # 1 1 1 | 5x1=5
+        # 1 2 0 | 6x2=12
+        # 1 2 1 | 6x1=6
+
+        model = Model([a, b])
+        model.build_graph()
+        c = model.exhaustive_enumeration()
+
+        d = Factor([(0, 2), (1, 3), (2, 2)])
+        d.data = np.array([1, 2, 2, 4, 3, 6, 8, 4, 10, 5, 12, 6]).reshape(2, 3, 2)
+
+        self.assertEqual(d.variables, c.variables)
+        self.assertEqual(d.axis_to_variable, c.axis_to_variable)
+        assert_array_almost_equal(d.data, c.data)
 
 if __name__ == '__main__':
     unittest.main()

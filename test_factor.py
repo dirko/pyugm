@@ -1,12 +1,13 @@
 import unittest
 from factor import Factor
 from numpy.testing import assert_array_almost_equal
+import numpy as np
 
 
 class TestFactor(unittest.TestCase):
     def test_marginalize_small_edge(self):
         a = Factor([(0, 2), (1, 2)])
-        a.data[0, 0] = 1
+        # a.data[0, 0] should equal 1 by default
         a.data[0, 1] = 2
         a.data[1, 0] = 5
         a.data[1, 1] = 8
@@ -109,7 +110,7 @@ class TestFactor(unittest.TestCase):
         self.assertEqual(d.axis_to_variable, e.axis_to_variable)
         assert_array_almost_equal(d.data, e.data)
 
-    def test_multiply_small_b(self):
+    def test_multiply_small_inplace(self):
         a = Factor([(0, 2), (1, 2)])
         a.data[0, 0] = 1
         a.data[0, 1] = 2
@@ -126,15 +127,15 @@ class TestFactor(unittest.TestCase):
         c.data[1, 0] = 10
         c.data[1, 1] = 18
 
-        d = a.multiply(b)
+        a.multiply(b)
 
-        print d.data
+        print a.data
         print c.data
-        print d.data.shape
+        print a.data.shape
         print c.data.shape
-        self.assertEqual(d.variables, c.variables)
-        self.assertEqual(d.axis_to_variable, c.axis_to_variable)
-        assert_array_almost_equal(d.data, c.data)
+        self.assertEqual(a.variables, c.variables)
+        self.assertEqual(a.axis_to_variable, c.axis_to_variable)
+        assert_array_almost_equal(a.data, c.data)
 
     def test_multiply_small_a(self):
         a = Factor([(0, 2), (1, 2)])
@@ -153,7 +154,7 @@ class TestFactor(unittest.TestCase):
         f.data[1, 0] = 5 * 3
         f.data[1, 1] = 6 * 3
 
-        g = a.multiply(e)
+        g = a.multiply(e, update_inplace=False)
 
         print g.data
         print f.data
@@ -202,7 +203,7 @@ class TestFactor(unittest.TestCase):
         c.data[1, 1, 1] = 9 * 1
         c.data[1, 1, 2] = 10 * 7
 
-        d = a.multiply(b)
+        d = a.multiply(b, update_inplace=False)
 
         print d.data
         print c.data
@@ -229,7 +230,7 @@ class TestFactor(unittest.TestCase):
         c.data[1, 0] = 5.0 / 2.0
         c.data[1, 1] = 6.0 / 3.0
 
-        d = a.multiply(b, divide=True)
+        d = a.multiply(b, divide=True, update_inplace=False)
 
         print d.data
         print c.data
@@ -238,6 +239,16 @@ class TestFactor(unittest.TestCase):
         self.assertEqual(d.variables, c.variables)
         self.assertEqual(d.axis_to_variable, c.axis_to_variable)
         assert_array_almost_equal(d.data, c.data)
+
+    def test_get_potential_single(self):
+        a = Factor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))
+        b = a.get_potential([(8, 0), (4, 1), (2, 4)])
+        self.assertAlmostEqual(b, 3)
+
+    def test_get_potential_slice(self):
+        a = Factor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))
+        b = a.get_potential([(8, 0), (9, 1), (2, 4)])
+        assert_array_almost_equal(b, np.array([0, 3]))
 
 
 if __name__ == '__main__':
