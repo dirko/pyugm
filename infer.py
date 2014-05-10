@@ -9,8 +9,6 @@ class Model:
         self.cardinalities = dict()  # variable name to int
         self.variables_to_factors = dict()  # variable name to factor
         self.edges = set()  # pairs of factors
-        self.separator_potentials = dict()  # edge to pairs of separator potentials
-        self.belief_update_queue = PriorityQueue()  # edges to update beliefs for
 
         for factor in factor_list:
             self.add_factor(factor)
@@ -77,9 +75,22 @@ class Model:
             max_sepset = max(sepset_sizes, key=lambda x: x[1])
         return max_sepset[0]
 
+    def set_evidence(self, evidence, normalize=False):
+        """ param evidence: list of (variable name, value) pairs """
+        for variable, value in evidence:
+            for factor in self.variables_to_factors[variable]:
+                factor.set_evidence([(variable, value)], normalize=normalize, inplace=True)
+
+
+class LoopyBeliefUpdateInference:
+    def __init__(self, model):
+        self.separator_potentials = dict()  # edge to pairs of separator potentials
+        self.belief_update_queue = PriorityQueue()  # edges to update beliefs for
+        self.model = model
+
     def set_up_belief_update(self):
         """ Initialise separator potentials to 1 """
-        for edge in list(self.edges):
+        for edge in list(self.model.edges):
             factor1, factor2 = edge
             sepset = factor1.variable_set.intersection(factor2.variable_set)
             separator_variables = [(variable, factor1.cardinalities[variable]) for variable in list(sepset)]
@@ -91,7 +102,7 @@ class Model:
         # Sets up priority queue of edges to update
         # NOTE: Should be possible to set up scheme here so that if the graph is a tree only a forward
         # and backward pass will be necessary.
-        for edge in list(self.edges):
+        for edge in list(self.model.edges):
             priority = -np.inf  # highest priority
             self.belief_update_queue.put((priority, edge))
 
@@ -101,7 +112,7 @@ class Model:
 
         # Phi** = Sum Psi
         new_separator = edge[0].marginalize(variables_to_keep)
-        # A = Phi*/Phi
+        # A = Phi* / Phi
         new_separator_divided = new_separator.multiply(old_separators[0], divide=True, update_inplace=False)
         # Psi** = Psi* x A
         print edge[0], '->', edge[1]
@@ -123,22 +134,26 @@ class Model:
     def update_beliefs(self, number_of_updates=100, number_of_zero_updates_before_complete_pass=2, delta=10**-10):
         total_average_change_per_cell = 0
         number_of_consecutive_zero_updates = 0
+        update_num = 0
         for update_num in xrange(number_of_updates):
-            print '-------new update------'
+            print '-------new update------', update_num
             priority, edge = self.belief_update_queue.get_nowait()
+            self.belief_update_queue.task_done()
 
             average_change_per_cell = self.update_belief(edge)
+            total_average_change_per_cell += average_change_per_cell
 
             # Update queue
             reverse_edge = (edge[1], edge[0])
             self.belief_update_queue.put((-average_change_per_cell, reverse_edge))
-            total_average_change_per_cell += average_change_per_cell
 
             if average_change_per_cell == 0:
                 number_of_consecutive_zero_updates += 1
+            else:
+                number_of_consecutive_zero_updates = 0
 
             if number_of_consecutive_zero_updates == number_of_zero_updates_before_complete_pass:
-                edge_list = list(self.edges)
+                edge_list = list(self.model.edges)
                 complete_pass_change = 0
                 for edge in edge_list:
                     complete_pass_change += self.update_belief(edge)
@@ -151,11 +166,11 @@ class Model:
                 else:
                     number_of_consecutive_zero_updates = 0
 
-        return total_average_change_per_cell / number_of_updates
+        return total_average_change_per_cell / number_of_updates, update_num
 
     def exhaustive_enumeration(self):
         """ Compute the complete probability table by enumerating all variable instantiations """
-        variables = [(key, value) for key, value in self.cardinalities.items()]
+        variables = [(key, value) for key, value in self.model.cardinalities.items()]
         table_shape = [cardinality for cardinality, variable_name in variables]
         table_size = np.prod(table_shape)
         if table_size > 10**7:
@@ -178,10 +193,9 @@ class Model:
 
         done = False
         while not done:
-            for factor in self.factors:
+            for factor in self.model.factors:
                 potential_value = factor.get_potential([tuple(var) for var in instantiation])
                 new_factor.data[tuple(var[1] for var in instantiation)] *= potential_value
             done, instantiation = tick_instantiation(instantiation)
 
         return new_factor
-

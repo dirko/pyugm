@@ -78,5 +78,30 @@ class Factor:
                 array_position[self.variable_to_axis[var]] = assignment
         return self.data[tuple(array_position)]
 
+    def set_evidence(self, evidence, normalize=False, inplace=False):
+        """
+        Pin the variables to certain values
+        param evidence: list of (variable, value) pairs
+        return: new factor
+        """
+        array_position = [slice(self.cardinalities[self.axis_to_variable[axis]])
+                          for axis in xrange(len(self.variables))]
+        for var, assignment in evidence:
+            if var in self.cardinalities:
+                array_position[self.variable_to_axis[var]] = assignment
+
+        multiplier = np.zeros_like(self.data)
+        multiplier[tuple(array_position)] = 1
+
+        if inplace:
+            return_factor = self
+        else:
+            return_factor = Factor(self.variables, 'placeholder')
+        return_data = self.data * multiplier * 1.0
+        if normalize:
+            return_data /= return_data.sum()
+        return_factor.data = return_data
+        return return_factor
+
     def __str__(self):
         return '{' + ', '.join(str(var) for var, card in self.variables) + '}'

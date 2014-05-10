@@ -250,6 +250,34 @@ class TestFactor(unittest.TestCase):
         b = a.get_potential([(8, 0), (9, 1), (2, 4)])
         assert_array_almost_equal(b, np.array([0, 3]))
 
+    def test_set_evidence_not_normalized_not_inplace(self):
+        a = Factor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
+        print a.data
+        b = a.set_evidence([(1, 1)])
+        c_data = np.array([[0, 0, 0], [3, 4, 5]])
+        c = Factor([(1, 2), (4, 3)], data=c_data)
+        self.assertItemsEqual(c.variables, b.variables)
+        assert_array_almost_equal(c.data, b.data)
+
+    def test_set_evidence_normalized_not_inplace(self):
+        a = Factor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
+        print a.data
+        b = a.set_evidence([(1, 1)], normalize=True)
+        c_data = np.array([[0, 0, 0], [3, 4, 5]]) / 12.0
+        print c_data
+        c = Factor([(1, 2), (4, 3)], data=c_data)
+        self.assertItemsEqual(c.variables, b.variables)
+        assert_array_almost_equal(c.data, b.data)
+
+    def test_set_evidence_not_normalized_inplace(self):
+        a = Factor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
+        print a.data
+        b = a.set_evidence([(1, 1)], inplace=True)
+        c_data = np.array([[0, 0, 0], [3, 4, 5]])
+        c = Factor([(1, 2), (4, 3)], data=c_data)
+        self.assertEqual(a, b)
+        self.assertItemsEqual(c.variables, a.variables)
+        assert_array_almost_equal(c.data, a.data)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,9 +1,9 @@
 import unittest
-from factor import Factor
-from infer import Model
 from numpy.testing import assert_array_almost_equal
 import numpy as np
 
+from factor import Factor
+from infer import Model, LoopyBeliefUpdateInference
 
 def print_edge_set(edges):
     for edge in list(edges):
@@ -36,7 +36,7 @@ def assertEdgeSetsEqual(self, set1, set2, msg=''):
         raise
 
 
-class TestBuildGraph(unittest.TestCase):
+class TestModel(unittest.TestCase):
     def test_get_largest_sepset_small(self):
         a = Factor([(0, 2), (1, 2), (2, 2)])
         b = Factor([(2, 2), (3, 2), (4, 2)])
@@ -120,23 +120,37 @@ class TestBuildGraph(unittest.TestCase):
         print_edge_set(model.edges)
         assertEdgeSetsEqual(self, model.edges, expected_edges)
 
+    def test_set_evidence(self):
+        a = Factor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2)))
+        b = Factor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2)))
+        model = Model([a, b])
+        evidence = [(2, 1), (4, 0)]
+        model.set_evidence(evidence)
 
-class TestInference(unittest.TestCase):
+        c = Factor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2))).set_evidence(evidence)
+        d = Factor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2))).set_evidence(evidence)
+
+        assert_array_almost_equal(c.data, model.factors[0].data)
+        assert_array_almost_equal(d.data, model.factors[1].data)
+
+
+class TestLoopyBeliefUpdateInference(unittest.TestCase):
     def test_set_up_separators(self):
         a = Factor([(0, 2), (1, 2), (2, 2)])
         b = Factor([(2, 2), (3, 2), (3, 2)])
 
         model = Model([a, b])
         model.build_graph()
-        model.set_up_belief_update()
+        inference = LoopyBeliefUpdateInference(model)
+        inference.set_up_belief_update()
 
         s = Factor([(2, 2)])
-        print model.separator_potentials
+        print inference.separator_potentials
         forward_edge = list(model.edges)[0]
         forward_and_backward_edge = [forward_edge, (forward_edge[1], forward_edge[0])]
         for edge in forward_and_backward_edge:
-            separator_factor1 = model.separator_potentials[edge][0]
-            separator_factor2 = model.separator_potentials[edge][1]
+            separator_factor1 = inference.separator_potentials[edge][0]
+            separator_factor2 = inference.separator_potentials[edge][1]
 
             self.assertSetEqual(separator_factor1.variable_set, s.variable_set)
             self.assertDictEqual(separator_factor1.cardinalities, s.cardinalities)
@@ -153,15 +167,16 @@ class TestInference(unittest.TestCase):
 
         model = Model([a, b, c])
         model.build_graph()
-        model.set_up_belief_update()
+        inference = LoopyBeliefUpdateInference(model)
+        inference.set_up_belief_update()
 
         priority_edges = set()
-        while not model.belief_update_queue.empty():
-            edge = model.belief_update_queue.get_nowait()
+        while not inference.belief_update_queue.empty():
+            edge = inference.belief_update_queue.get_nowait()
             priority_edges.add(edge)
 
         print priority_edges
-        print model.belief_update_queue.qsize()
+        print inference.belief_update_queue.qsize()
         expected_set = {(a, b), (b, c)}
         priority_edges_set = set()
         for priority_edge in priority_edges:
@@ -174,7 +189,8 @@ class TestInference(unittest.TestCase):
         b = Factor([1, 2])
         model = Model([a, b])
         model.build_graph()
-        model.set_up_belief_update()
+        inference = LoopyBeliefUpdateInference(model)
+        inference.set_up_belief_update()
         #                       0
         #                     0  1
         # Phi* = Sum_{0} 1 0 [ 1 1 ]  =  1 0 [ 2 ]
@@ -198,9 +214,9 @@ class TestInference(unittest.TestCase):
         # Psi*** = Phi*** x Psi* = 2 0 [ 2 2 ]
         #          Phi**             1 [ 2 2 ]
         #
-        change0 = model.update_beliefs(number_of_updates=2)
-        change1 = model.update_beliefs(number_of_updates=3)
-        print change0, change1
+        change0, iterations0 = inference.update_beliefs(number_of_updates=2)
+        change1, iterations1 = inference.update_beliefs(number_of_updates=3)
+        print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
 
         final_a = Factor([0, 1])
         final_a.data *= 2
@@ -225,13 +241,14 @@ class TestInference(unittest.TestCase):
         #
         model = Model([a, b, c, d, e, f])
         model.build_graph()
+        inference = LoopyBeliefUpdateInference(model)
 
-        exhaustive_answer = model.exhaustive_enumeration()  # do first because update_beliefs changes the factors
+        exhaustive_answer = inference.exhaustive_enumeration()  # do first because update_beliefs changes the factors
 
-        model.set_up_belief_update()
-        for epoch in xrange(5):
-            change = model.update_beliefs(number_of_updates=20)
-            print epoch, '==============================', change, '==============================='
+        inference.set_up_belief_update()
+        change = inference.update_beliefs(number_of_updates=35)
+        print change
+
         for factor in model.factors:
             print factor, np.sum(factor.data)
 
@@ -258,7 +275,8 @@ class TestInference(unittest.TestCase):
 
         model = Model([a, b])
         model.build_graph()
-        c = model.exhaustive_enumeration()
+        inference = LoopyBeliefUpdateInference(model)
+        c = inference.exhaustive_enumeration()
 
         d = Factor([(0, 2), (1, 3), (2, 2)])
         d.data = np.array([1, 2, 2, 4, 3, 6, 8, 4, 10, 5, 12, 6]).reshape(2, 3, 2)
