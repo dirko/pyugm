@@ -1,12 +1,12 @@
 import unittest
-from factor import Factor
+from factor import DiscreteFactor
 from numpy.testing import assert_array_almost_equal
 import numpy as np
 
 
 class TestFactor(unittest.TestCase):
     def test_marginalize_small_edge(self):
-        a = Factor([(0, 2), (1, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2)])
         # a.data[0, 0] should equal 1 by default
         a.data[0, 1] = 2
         a.data[1, 0] = 5
@@ -27,13 +27,13 @@ class TestFactor(unittest.TestCase):
         assert_array_almost_equal(c.data, a.data)
 
     def test_marginalize_small(self):
-        a = Factor([(0, 2), (1, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2)])
         a.data[0, 0] = 1
         a.data[0, 1] = 2
         a.data[1, 0] = 5
         a.data[1, 1] = 8
 
-        c = Factor([(0, 2)])
+        c = DiscreteFactor([(0, 2)])
         c.data[0] = 3
         c.data[1] = 13
 
@@ -48,7 +48,7 @@ class TestFactor(unittest.TestCase):
         self.assertEqual(b.axis_to_variable, c.axis_to_variable)
         assert_array_almost_equal(b.data, c.data)
 
-        e = Factor([(1, 2)])
+        e = DiscreteFactor([(1, 2)])
         e.data[0] = 6
         e.data[1] = 10
 
@@ -65,7 +65,7 @@ class TestFactor(unittest.TestCase):
         assert_array_almost_equal(d.data, e.data)
 
     def test_marginalize_larger(self):
-        a = Factor([(0, 2), (4, 3), (20, 2)])
+        a = DiscreteFactor([(0, 2), (4, 3), (20, 2)])
         a.data[0, 0, 0] = 1
         a.data[0, 0, 1] = 2
         a.data[0, 1, 0] = 5
@@ -80,7 +80,7 @@ class TestFactor(unittest.TestCase):
         a.data[1, 2, 0] = 19
         a.data[1, 2, 1] = 21
 
-        c = Factor([(0, 2)])
+        c = DiscreteFactor([(0, 2)])
         c.data[0] = 35
         c.data[1] = 96
 
@@ -93,7 +93,7 @@ class TestFactor(unittest.TestCase):
         self.assertEqual(b.axis_to_variable, c.axis_to_variable)
         assert_array_almost_equal(b.data, c.data)
 
-        e = Factor([(4, 3), (20, 2)])
+        e = DiscreteFactor([(4, 3), (20, 2)])
         e.data[0, 0] = 12
         e.data[0, 1] = 14
         e.data[1, 0] = 20
@@ -111,17 +111,17 @@ class TestFactor(unittest.TestCase):
         assert_array_almost_equal(d.data, e.data)
 
     def test_multiply_small_inplace(self):
-        a = Factor([(0, 2), (1, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2)])
         a.data[0, 0] = 1
         a.data[0, 1] = 2
         a.data[1, 0] = 5
         a.data[1, 1] = 6
 
-        b = Factor([(1, 2)])
+        b = DiscreteFactor([(1, 2)])
         b.data[0] = 2
         b.data[1] = 3
 
-        c = Factor([(0, 2), (1, 2)])
+        c = DiscreteFactor([(0, 2), (1, 2)])
         c.data[0, 0] = 2
         c.data[0, 1] = 6
         c.data[1, 0] = 10
@@ -138,17 +138,17 @@ class TestFactor(unittest.TestCase):
         assert_array_almost_equal(a.data, c.data)
 
     def test_multiply_small_a(self):
-        a = Factor([(0, 2), (1, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2)])
         a.data[0, 0] = 1
         a.data[0, 1] = 2
         a.data[1, 0] = 5
         a.data[1, 1] = 6
 
-        e = Factor([(0, 2)])
+        e = DiscreteFactor([(0, 2)])
         e.data[0] = 2
         e.data[1] = 3
 
-        f = Factor([(0, 2), (1, 2)])
+        f = DiscreteFactor([(0, 2), (1, 2)])
         f.data[0, 0] = 1 * 2
         f.data[0, 1] = 2 * 2
         f.data[1, 0] = 5 * 3
@@ -165,7 +165,7 @@ class TestFactor(unittest.TestCase):
         assert_array_almost_equal(g.data, f.data)
 
     def test_multiply_larger(self):
-        a = Factor([(0, 2), (3, 2), (12, 3)])
+        a = DiscreteFactor([(0, 2), (3, 2), (12, 3)])
         a.data[0, 0, 0] = 2
         a.data[0, 0, 1] = 1
         a.data[0, 0, 2] = 2
@@ -180,7 +180,7 @@ class TestFactor(unittest.TestCase):
         a.data[1, 1, 1] = 9
         a.data[1, 1, 2] = 10
 
-        b = Factor([(0, 2), (12, 3)])
+        b = DiscreteFactor([(0, 2), (12, 3)])
         b.data[0, 0] = 2
         b.data[0, 1] = 3
         b.data[0, 2] = 1
@@ -188,7 +188,7 @@ class TestFactor(unittest.TestCase):
         b.data[1, 1] = 1
         b.data[1, 2] = 7
 
-        c = Factor([(0, 2), (3, 2), (12, 3)])
+        c = DiscreteFactor([(0, 2), (3, 2), (12, 3)])
         c.data[0, 0, 0] = 2 * 2
         c.data[0, 0, 1] = 1 * 3
         c.data[0, 0, 2] = 2 * 1
@@ -213,18 +213,68 @@ class TestFactor(unittest.TestCase):
         self.assertEqual(d.axis_to_variable, c.axis_to_variable)
         assert_array_almost_equal(d.data, c.data)
 
+    def test_multiply_larger_correct_order(self):
+        a = DiscreteFactor([(0, 2), (3, 2), (12, 3)])
+        a.data[0, 0, 0] = 2
+        a.data[0, 0, 1] = 1
+        a.data[0, 0, 2] = 2
+        a.data[0, 1, 0] = 3
+        a.data[0, 1, 1] = 7
+        a.data[0, 1, 2] = 4
+
+        a.data[1, 0, 0] = 1
+        a.data[1, 0, 1] = 1
+        a.data[1, 0, 2] = 3
+        a.data[1, 1, 0] = 4
+        a.data[1, 1, 1] = 9
+        a.data[1, 1, 2] = 10
+
+        b = DiscreteFactor([(12, 3), (0, 2)])
+        b.data[0, 0] = 2
+        b.data[1, 0] = 3
+        b.data[2, 0] = 1
+        b.data[0, 1] = 5
+        b.data[1, 1] = 1
+        b.data[2, 1] = 7
+
+        c = DiscreteFactor([(0, 2), (3, 2), (12, 3)])
+        c.data[0, 0, 0] = 2 * 2
+        c.data[0, 0, 1] = 1 * 3
+        c.data[0, 0, 2] = 2 * 1
+        c.data[0, 1, 0] = 3 * 2
+        c.data[0, 1, 1] = 7 * 3
+        c.data[0, 1, 2] = 4 * 1
+
+        c.data[1, 0, 0] = 1 * 5
+        c.data[1, 0, 1] = 1 * 1
+        c.data[1, 0, 2] = 3 * 7
+        c.data[1, 1, 0] = 4 * 5
+        c.data[1, 1, 1] = 9 * 1
+        c.data[1, 1, 2] = 10 * 7
+
+        d = a.multiply(b, update_inplace=False)
+
+        print d.data
+        print c.data
+        print d.data.shape
+        print c.data.shape
+        self.assertEqual(d.variables, c.variables)
+        self.assertEqual(d.axis_to_variable, c.axis_to_variable)
+        assert_array_almost_equal(d.data, c.data)
+        pass
+
     def test_divide_small(self):
-        a = Factor([(0, 2), (1, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2)])
         a.data[0, 0] = 1.0
         a.data[0, 1] = 2.0
         a.data[1, 0] = 5.0
         a.data[1, 1] = 6.0
 
-        b = Factor([(1, 2)])
+        b = DiscreteFactor([(1, 2)])
         b.data[0] = 2.0
         b.data[1] = 3.0
 
-        c = Factor([(0, 2), (1, 2)])
+        c = DiscreteFactor([(0, 2), (1, 2)])
         c.data[0, 0] = 1.0 / 2.0
         c.data[0, 1] = 2.0 / 3.0
         c.data[1, 0] = 5.0 / 2.0
@@ -241,40 +291,40 @@ class TestFactor(unittest.TestCase):
         assert_array_almost_equal(d.data, c.data)
 
     def test_get_potential_single(self):
-        a = Factor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))
+        a = DiscreteFactor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))
         b = a.get_potential([(8, 0), (4, 1), (2, 4)])
         self.assertAlmostEqual(b, 3)
 
     def test_get_potential_slice(self):
-        a = Factor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))
+        a = DiscreteFactor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))
         b = a.get_potential([(8, 0), (9, 1), (2, 4)])
         assert_array_almost_equal(b, np.array([0, 3]))
 
     def test_set_evidence_not_normalized_not_inplace(self):
-        a = Factor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
+        a = DiscreteFactor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
         print a.data
         b = a.set_evidence([(1, 1)])
         c_data = np.array([[0, 0, 0], [3, 4, 5]])
-        c = Factor([(1, 2), (4, 3)], data=c_data)
+        c = DiscreteFactor([(1, 2), (4, 3)], data=c_data)
         self.assertItemsEqual(c.variables, b.variables)
         assert_array_almost_equal(c.data, b.data)
 
     def test_set_evidence_normalized_not_inplace(self):
-        a = Factor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
+        a = DiscreteFactor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
         print a.data
         b = a.set_evidence([(1, 1)], normalize=True)
         c_data = np.array([[0, 0, 0], [3, 4, 5]]) / 12.0
         print c_data
-        c = Factor([(1, 2), (4, 3)], data=c_data)
+        c = DiscreteFactor([(1, 2), (4, 3)], data=c_data)
         self.assertItemsEqual(c.variables, b.variables)
         assert_array_almost_equal(c.data, b.data)
 
     def test_set_evidence_not_normalized_inplace(self):
-        a = Factor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
+        a = DiscreteFactor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
         print a.data
         b = a.set_evidence([(1, 1)], inplace=True)
         c_data = np.array([[0, 0, 0], [3, 4, 5]])
-        c = Factor([(1, 2), (4, 3)], data=c_data)
+        c = DiscreteFactor([(1, 2), (4, 3)], data=c_data)
         self.assertEqual(a, b)
         self.assertItemsEqual(c.variables, a.variables)
         assert_array_almost_equal(c.data, a.data)

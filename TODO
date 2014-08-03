@@ -1,0 +1,6 @@
+Maybe concentrate on getting a discrete bayesian network going first.
+Factor out the update ordering.
+Add gaussian priors [rather dirichlet priors?] - variable and conditional. (Variational/expectation update?)
+Add plates - update order should take this into account.
+Plates for dynamic models.
+Clusters?

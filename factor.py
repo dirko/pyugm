@@ -1,8 +1,8 @@
 import numpy as np
 
 
-class Factor:
-    def __init__(self, variables, data=None):
+class DiscreteFactor:
+    def __init__(self, variables, data=None, normalize=False):
         # variables = [(name, cardinality), (name, cardinality) ... ]
 
         # Short form: if only list of names, use cardinalities of 2
@@ -25,7 +25,10 @@ class Factor:
         else:
             self.data = np.ones(tuple(variable[1] for variable in variables))
 
-    def marginalize(self, variable_names):
+        if normalize:
+            self.data /= sum(self.data)
+
+    def marginalize(self, variable_names, normalize=False):
         # variable_names: variables to keep
         axes = [self.variable_to_axis[own_variable_name]
                 for own_variable_name, own_variable_card in self.variables
@@ -34,7 +37,9 @@ class Factor:
         result_shape = [cardinality for name, cardinality in result_variables]
 
         result_data = np.apply_over_axes(np.sum, self.data, axes).reshape(result_shape)
-        result_factor = Factor(result_variables, result_data)
+        if normalize:
+            result_data /= result_data.sum()
+        result_factor = DiscreteFactor(result_variables, result_data)
 
         return result_factor
 
@@ -44,7 +49,10 @@ class Factor:
         variables_in_self_not_in_other = [variable[0] for variable in self.variables
                                           if variable not in other_factor.variables]
         other_variable_order += variables_in_self_not_in_other
-        new_axis_order = [self.variable_to_axis[other_variable] for other_variable in other_variable_order]
+        print 'other_var_ord', other_variable_order
+        print 'variables_in_self_not_ot', variables_in_self_not_in_other
+        new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
+                          for axis in xrange(len(other_variable_order))]
 
         new_shape = [card for card in other_factor.data.shape] + [1 for var in variables_in_self_not_in_other]
         reshaped_other_data = other_factor.data.reshape(new_shape)
@@ -62,7 +70,7 @@ class Factor:
         if update_inplace:
             self.data = result_data
         else:
-            result_factor = Factor(self.variables, 'placeholder')
+            result_factor = DiscreteFactor(self.variables, 'placeholder')
             result_factor.data = result_data
             return result_factor
 
@@ -96,12 +104,23 @@ class Factor:
         if inplace:
             return_factor = self
         else:
-            return_factor = Factor(self.variables, 'placeholder')
+            return_factor = DiscreteFactor(self.variables, 'placeholder')
         return_data = self.data * multiplier * 1.0
         if normalize:
             return_data /= return_data.sum()
         return_factor.data = return_data
         return return_factor
+
+    def _rotate_other(self, other_factor):
+        other_variable_order = [other_factor.axis_to_variable[other_axis]
+                                for other_axis in xrange(len(other_factor.data.shape))]
+        new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
+                          for axis in xrange(len(other_variable_order))]
+        print self.variables
+        print other_factor.variables
+        print other_variable_order
+        print new_axis_order
+        return other_factor.data.transpose(new_axis_order)
 
     def __str__(self):
         return '{' + ', '.join(str(var) for var, card in self.variables) + '}'

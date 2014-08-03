@@ -2,7 +2,7 @@ import unittest
 from numpy.testing import assert_array_almost_equal
 import numpy as np
 
-from factor import Factor
+from factor import DiscreteFactor
 from infer import Model, LoopyBeliefUpdateInference
 
 def print_edge_set(edges):
@@ -38,8 +38,8 @@ def assertEdgeSetsEqual(self, set1, set2, msg=''):
 
 class TestModel(unittest.TestCase):
     def test_get_largest_sepset_small(self):
-        a = Factor([(0, 2), (1, 2), (2, 2)])
-        b = Factor([(2, 2), (3, 2), (4, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2), (2, 2)])
+        b = DiscreteFactor([(2, 2), (3, 2), (4, 2)])
 
         model = Model([a, b])
         model.build_graph()
@@ -49,9 +49,9 @@ class TestModel(unittest.TestCase):
         assertEdgeEqual(self, list(model.edges)[0], (b, a))
 
     def test_get_largest_sepset_larger(self):
-        a = Factor([(0, 2), (1, 2), (2, 2)])
-        b = Factor([(0, 2), (3, 2), (4, 2)])
-        c = Factor([(1, 2), (2, 2), (5, 3), (6, 3)])
+        a = DiscreteFactor([(0, 2), (1, 2), (2, 2)])
+        b = DiscreteFactor([(0, 2), (3, 2), (4, 2)])
+        c = DiscreteFactor([(1, 2), (2, 2), (5, 3), (6, 3)])
 
         model = Model([a, b, c])
         model.build_graph()
@@ -66,11 +66,11 @@ class TestModel(unittest.TestCase):
         assertEdgeSetsEqual(self, model.edges, {(a, c), (a, b)})
 
     def test_get_largest_sepset_large(self):
-        a = Factor([0, 1, 2, 3, 4, 5])
-        b = Factor([1, 2, 3, 4, 5, 6])
-        c = Factor([3, 4, 5, 6, 8])
-        d = Factor([0, 1, 2, 7])
-        e = Factor([1, 7, 8])
+        a = DiscreteFactor([0, 1, 2, 3, 4, 5])
+        b = DiscreteFactor([1, 2, 3, 4, 5, 6])
+        c = DiscreteFactor([3, 4, 5, 6, 8])
+        d = DiscreteFactor([0, 1, 2, 7])
+        e = DiscreteFactor([1, 7, 8])
 
         # a{0 1 2 3 4 5} --[1 2 3 4 5]-- b{1 2 3 4 5 6} --[3 4 5 6]-- c{3 4 5 6 8}
         #      \                                                    /
@@ -87,18 +87,18 @@ class TestModel(unittest.TestCase):
         assertEdgeSetsEqual(self, model.edges, expected_edges)
 
     def test_get_largest_sepset_grid(self):
-        a = Factor([0, 1])
-        b = Factor([1, 2, 3])
-        c = Factor([3, 4, 5])
-        d = Factor([5, 6])
-        e = Factor([0, 7, 8])
-        f = Factor([8, 2, 9, 10])
-        g = Factor([10, 4, 11, 12])
-        h = Factor([12, 13, 6])
-        i = Factor([7, 14])
-        j = Factor([14, 9, 15])
-        k = Factor([15, 11, 16])
-        l = Factor([16, 13])
+        a = DiscreteFactor([0, 1])
+        b = DiscreteFactor([1, 2, 3])
+        c = DiscreteFactor([3, 4, 5])
+        d = DiscreteFactor([5, 6])
+        e = DiscreteFactor([0, 7, 8])
+        f = DiscreteFactor([8, 2, 9, 10])
+        g = DiscreteFactor([10, 4, 11, 12])
+        h = DiscreteFactor([12, 13, 6])
+        i = DiscreteFactor([7, 14])
+        j = DiscreteFactor([14, 9, 15])
+        k = DiscreteFactor([15, 11, 16])
+        l = DiscreteFactor([16, 13])
 
         # a{0 1} ---[1]--- b{1 2 3} ---[3]--- c{3 4 5} ---[5]--- d{5 6}
         #   |                  |                   |                  |
@@ -121,14 +121,14 @@ class TestModel(unittest.TestCase):
         assertEdgeSetsEqual(self, model.edges, expected_edges)
 
     def test_set_evidence(self):
-        a = Factor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2)))
-        b = Factor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2)))
+        a = DiscreteFactor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2)))
+        b = DiscreteFactor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2)))
         model = Model([a, b])
         evidence = [(2, 1), (4, 0)]
         model.set_evidence(evidence)
 
-        c = Factor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2))).set_evidence(evidence)
-        d = Factor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2))).set_evidence(evidence)
+        c = DiscreteFactor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2))).set_evidence(evidence)
+        d = DiscreteFactor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2))).set_evidence(evidence)
 
         assert_array_almost_equal(c.data, model.factors[0].data)
         assert_array_almost_equal(d.data, model.factors[1].data)
@@ -136,15 +136,15 @@ class TestModel(unittest.TestCase):
 
 class TestLoopyBeliefUpdateInference(unittest.TestCase):
     def test_set_up_separators(self):
-        a = Factor([(0, 2), (1, 2), (2, 2)])
-        b = Factor([(2, 2), (3, 2), (3, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2), (2, 2)])
+        b = DiscreteFactor([(2, 2), (3, 2), (3, 2)])
 
         model = Model([a, b])
         model.build_graph()
         inference = LoopyBeliefUpdateInference(model)
         inference.set_up_belief_update()
 
-        s = Factor([(2, 2)])
+        s = DiscreteFactor([(2, 2)])
         print inference.separator_potentials
         forward_edge = list(model.edges)[0]
         forward_and_backward_edge = [forward_edge, (forward_edge[1], forward_edge[0])]
@@ -161,9 +161,9 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
             assert_array_almost_equal(separator_factor2.data, s.data)
 
     def test_set_up_update_queue(self):
-        a = Factor([(0, 2), (1, 2), (2, 2)])
-        b = Factor([(2, 2), (3, 3), (4, 2)])
-        c = Factor([(3, 3), (4, 2), (5, 2)])
+        a = DiscreteFactor([(0, 2), (1, 2), (2, 2)])
+        b = DiscreteFactor([(2, 2), (3, 3), (4, 2)])
+        c = DiscreteFactor([(3, 3), (4, 2), (5, 2)])
 
         model = Model([a, b, c])
         model.build_graph()
@@ -185,8 +185,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         assertEdgeSetsEqual(self, priority_edges_set, expected_set)
 
     def test_update_beliefs_small(self):
-        a = Factor([0, 1])
-        b = Factor([1, 2])
+        a = DiscreteFactor([0, 1])
+        b = DiscreteFactor([1, 2])
         model = Model([a, b])
         model.build_graph()
         inference = LoopyBeliefUpdateInference(model)
@@ -218,9 +218,9 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         change1, iterations1 = inference.update_beliefs(number_of_updates=3)
         print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
 
-        final_a = Factor([0, 1])
+        final_a = DiscreteFactor([0, 1])
         final_a.data *= 2
-        final_b = Factor([1, 2])
+        final_b = DiscreteFactor([1, 2])
         final_b.data *= 2
 
         assert_array_almost_equal(a.data, final_a.data)
@@ -228,12 +228,12 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         self.assertAlmostEqual(change1, 0, delta=10**-10)
 
     def test_belief_update_larger_tree(self):
-        a = Factor([0, 1], data=np.array([[1, 2], [2, 2]]))
-        b = Factor([1, 2], data=np.array([[3, 2], [1, 2]]))
-        c = Factor([2, 3], data=np.array([[1, 2], [3, 4]]))
-        d = Factor([3], data=np.array([2, 1]))
-        e = Factor([0], data=np.array([4, 1]))
-        f = Factor([2], data=np.array([1, 2]))
+        a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]]))
+        b = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]]))
+        c = DiscreteFactor([2, 3], data=np.array([[1, 2], [3, 4]]))
+        d = DiscreteFactor([3], data=np.array([2, 1]))
+        e = DiscreteFactor([0], data=np.array([4, 1]))
+        f = DiscreteFactor([2], data=np.array([1, 2]))
         #
         # a{0 1} - b{1 2} - c{2 3} - d{3}
         #    |       |
@@ -256,8 +256,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(d.data))
 
     def test_exhaustive_enumeration(self):
-        a = Factor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))
-        b = Factor([(0, 2), (2, 2)], data=np.array([[1, 2], [2, 1]]))
+        a = DiscreteFactor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))
+        b = DiscreteFactor([(0, 2), (2, 2)], data=np.array([[1, 2], [2, 1]]))
         # 0 1 2 |
         #-------+--------
         # 0 0 0 | 1x1=1
@@ -278,7 +278,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         inference = LoopyBeliefUpdateInference(model)
         c = inference.exhaustive_enumeration()
 
-        d = Factor([(0, 2), (1, 3), (2, 2)])
+        d = DiscreteFactor([(0, 2), (1, 3), (2, 2)])
         d.data = np.array([1, 2, 2, 4, 3, 6, 8, 4, 10, 5, 12, 6]).reshape(2, 3, 2)
 
         self.assertEqual(d.variables, c.variables)

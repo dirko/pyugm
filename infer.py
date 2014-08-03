@@ -1,4 +1,4 @@
-from factor import Factor
+from factor import DiscreteFactor
 from Queue import PriorityQueue, Queue
 import numpy as np
 
@@ -81,6 +81,12 @@ class Model:
             for factor in self.variables_to_factors[variable]:
                 factor.set_evidence([(variable, value)], normalize=normalize, inplace=True)
 
+    def get_marginals(self, variable, normalize=True):
+        """
+        Return marginals of all the factors in which the variable appears.
+        """
+        return [factor.marginalize([variable], normalize=normalize) for factor in self.variables_to_factors[variable]]
+
 
 class LoopyBeliefUpdateInference:
     def __init__(self, model):
@@ -95,7 +101,7 @@ class LoopyBeliefUpdateInference:
             sepset = factor1.variable_set.intersection(factor2.variable_set)
             separator_variables = [(variable, factor1.cardinalities[variable]) for variable in list(sepset)]
             # NOTE: will want to set this up more generically for other kinds of factors
-            separator_factors = (Factor(separator_variables), Factor(separator_variables))
+            separator_factors = (DiscreteFactor(separator_variables), DiscreteFactor(separator_variables))
             self.separator_potentials[edge] = separator_factors
             self.separator_potentials[(edge[1], edge[0])] = separator_factors
 
@@ -116,7 +122,7 @@ class LoopyBeliefUpdateInference:
         new_separator_divided = new_separator.multiply(old_separators[0], divide=True, update_inplace=False)
         # Psi** = Psi* x A
         print edge[0], '->', edge[1]
-        print new_separator.data, '/', old_separators[0].data, '=', new_separator_divided.data
+        print new_separator.data.shape, '/', old_separators[0].data.shape, '=', new_separator_divided.data.shape
         edge[1].multiply(new_separator_divided)
 
         new_separators = (new_separator, old_separators[0])
@@ -125,7 +131,11 @@ class LoopyBeliefUpdateInference:
         self.separator_potentials[reverse_edge] = new_separators
 
         num_cells = np.prod(new_separator.data.shape) * 1.0
-        average_change_per_cell = abs(new_separator.data - old_separators[0].data).sum() / num_cells
+        print new_separator.data.shape
+        print old_separators[0].data.shape
+        print num_cells
+        #average_change_per_cell = abs(new_separator.data - old_separators[0].data).sum() / num_cells
+        average_change_per_cell = abs(new_separator.data - new_separator._rotate_other(old_separators[0])).sum() / num_cells
         print average_change_per_cell
         print new_separator.data
 
@@ -176,7 +186,7 @@ class LoopyBeliefUpdateInference:
         if table_size > 10**7:
             raise Exception('Model too large for exhaustive enumeration')
 
-        new_factor = Factor(variables)
+        new_factor = DiscreteFactor(variables)
         instantiation = [[var[0], 0] for var in variables]
 
         def tick_instantiation(i):
