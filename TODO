@@ -4,3 +4,11 @@ Add gaussian priors [rather dirichlet priors?] - variable and conditional. (Vari
 Add plates - update order should take this into account.
 Plates for dynamic models.
 Clusters?
+
+## 3 July 2014
+Looks like I'm rather going with un-normalised models first.
+Gaussian prior.
+Factors should now be parametrised - add place where parameter variables can be added to a factor.
+Use BFGS to find MAP
+Then approximate posterior with Laplace approximation using Hessian returned by BFGS.
+

@@ -13,6 +13,16 @@ class Model:
         for factor in factor_list:
             self.add_factor(factor)
 
+        self.parameters_to_index = {}
+        # Get number of params and map param to position in param vector
+        for factor in self.factors:
+            if factor.parameters is not None:
+                for parameter in factor.parameters.reshape(-1, ):
+                    if isinstance(parameter, str):
+                        self.parameters_to_index[parameter] = 0
+        for index, key in enumerate(sorted(self.parameters_to_index.keys())):
+            self.parameters_to_index[key] = index
+
     def add_factor(self, factor):
         self.factors.append(factor)
 
@@ -63,7 +73,8 @@ class Model:
                         add_edge_to_set(largest_sepset, self.edges)
                         mark_factors_in_edge(largest_sepset, marked_factors, unmarked_factors)
 
-    def get_largest_unmarked_sepset(self, variable, factors, marked_factors, unmarked_factors):
+    @staticmethod
+    def get_largest_unmarked_sepset(variable, factors, marked_factors, unmarked_factors):
         sepset_sizes = [((factor1, factor2), len(factor1.variable_set.intersection(factor2.variable_set)))
                         for factor1 in factors for factor2 in factors
                         if factor1 in marked_factors and factor2 in unmarked_factors and
@@ -77,7 +88,7 @@ class Model:
 
     def set_evidence(self, evidence, normalize=False):
         """ param evidence: list of (variable name, value) pairs """
-        for variable, value in evidence:
+        for variable, value in evidence.items():
             for factor in self.variables_to_factors[variable]:
                 factor.set_evidence([(variable, value)], normalize=normalize, inplace=True)
 
@@ -86,6 +97,30 @@ class Model:
         Return marginals of all the factors in which the variable appears.
         """
         return [factor.marginalize([variable], normalize=normalize) for factor in self.variables_to_factors[variable]]
+
+    def set_parameters(self, parameters):
+        """
+        Iterate through factors and fill factor potentials with these new parameters.
+        """
+        for factor in self.factors:
+            original_shape = factor.data.shape
+            new_data = factor.data.reshape(-1, )
+            for i, parameter in enumerate(factor.parameters.reshape(-1, )):
+                if isinstance(parameter, str):
+                    new_data[i] = parameters[self.parameters_to_index[parameter]]
+                else:
+                    new_data[i] = parameter
+            factor.data = new_data.reshape(original_shape)
+
+    def get_log_likelihood(self, evidence):
+        """ Return the log likelihood of the evidence. Must be called on calibrated model. """
+        log_likelihood = 0.0
+        for factor in self.factors:
+            print 'log_lik dat', factor, factor.data
+            print 'log_lik', factor, factor.get_potential(evidence.items()), factor.data.sum()
+            print 'log_marg', factor.marginalize(evidence.keys()).data
+            log_likelihood += np.log(factor.get_potential(evidence.items()).sum()) - np.log(factor.data.sum())
+        return log_likelihood
 
 
 class LoopyBeliefUpdateInference:

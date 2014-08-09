@@ -2,8 +2,10 @@ import numpy as np
 
 
 class DiscreteFactor:
-    def __init__(self, variables, data=None, normalize=False):
+    # noinspection PyNoneFunctionAssignment
+    def __init__(self, variables, data=None, normalize=False, parameters=None):
         # variables = [(name, cardinality), (name, cardinality) ... ]
+        # parameters = array (dtype=object) of same shape as data, containing parameter names
 
         # Short form: if only list of names, use cardinalities of 2
         try:
@@ -20,6 +22,7 @@ class DiscreteFactor:
                                      for i, variable in enumerate(variables))
         self.axis_to_variable = dict((i, variable[0])
                                      for i, variable in enumerate(variables))
+        self.parameters = parameters
         if data is not None:
             self.data = data
         else:
@@ -70,8 +73,8 @@ class DiscreteFactor:
         if update_inplace:
             self.data = result_data
         else:
-            result_factor = DiscreteFactor(self.variables, 'placeholder')
-            result_factor.data = result_data
+            result_factor = DiscreteFactor(self.variables, result_data)
+            #result_factor.data = result_data
             return result_factor
 
     def get_potential(self, variable_list):
