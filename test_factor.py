@@ -303,7 +303,7 @@ class TestFactor(unittest.TestCase):
     def test_set_evidence_not_normalized_not_inplace(self):
         a = DiscreteFactor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
         print a.data
-        b = a.set_evidence([(1, 1)])
+        b = a.set_evidence({1: 1})
         c_data = np.array([[0, 0, 0], [3, 4, 5]])
         c = DiscreteFactor([(1, 2), (4, 3)], data=c_data)
         self.assertItemsEqual(c.variables, b.variables)
@@ -312,7 +312,7 @@ class TestFactor(unittest.TestCase):
     def test_set_evidence_normalized_not_inplace(self):
         a = DiscreteFactor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
         print a.data
-        b = a.set_evidence([(1, 1)], normalize=True)
+        b = a.set_evidence({1: 1}, normalize=True)
         c_data = np.array([[0, 0, 0], [3, 4, 5]]) / 12.0
         print c_data
         c = DiscreteFactor([(1, 2), (4, 3)], data=c_data)
@@ -322,7 +322,7 @@ class TestFactor(unittest.TestCase):
     def test_set_evidence_not_normalized_inplace(self):
         a = DiscreteFactor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
         print a.data
-        b = a.set_evidence([(1, 1)], inplace=True)
+        b = a.set_evidence({1: 1}, inplace=True)
         c_data = np.array([[0, 0, 0], [3, 4, 5]])
         c = DiscreteFactor([(1, 2), (4, 3)], data=c_data)
         self.assertEqual(a, b)

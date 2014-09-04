@@ -73,7 +73,7 @@ class DiscreteFactor:
         if update_inplace:
             self.data = result_data
         else:
-            result_factor = DiscreteFactor(self.variables, result_data)
+            result_factor = DiscreteFactor(self.variables, result_data, parameters=self.parameters)
             #result_factor.data = result_data
             return result_factor
 
@@ -97,7 +97,7 @@ class DiscreteFactor:
         """
         array_position = [slice(self.cardinalities[self.axis_to_variable[axis]])
                           for axis in xrange(len(self.variables))]
-        for var, assignment in evidence:
+        for var, assignment in evidence.items():
             if var in self.cardinalities:
                 array_position[self.variable_to_axis[var]] = assignment
 
@@ -107,11 +107,12 @@ class DiscreteFactor:
         if inplace:
             return_factor = self
         else:
-            return_factor = DiscreteFactor(self.variables, 'placeholder')
+            return_factor = DiscreteFactor(self.variables, 'placeholder', parameters=self.parameters)
         return_data = self.data * multiplier * 1.0
         if normalize:
             return_data /= return_data.sum()
         return_factor.data = return_data
+        print 'set_ev', self.variables, return_data
         return return_factor
 
     def _rotate_other(self, other_factor):
@@ -126,4 +127,7 @@ class DiscreteFactor:
         return other_factor.data.transpose(new_axis_order)
 
     def __str__(self):
-        return '{' + ', '.join(str(var) for var, card in self.variables) + '}'
+        return 'F{' + ', '.join(str(var) for var, card in self.variables) + '}'
+
+    def __repr__(self):
+        return self.__str__()

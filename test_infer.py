@@ -139,7 +139,7 @@ class TestModel(unittest.TestCase):
         b = DiscreteFactor([2, 3], parameters=np.array([['b', 'c'], ['d', 'a']]))
         model = Model([a, b])
         print a.parameters
-        new_parameters = np.array([1, 2, 3, 4])
+        new_parameters = np.log(np.array([1, 2, 3, 4]))
         model.set_parameters(new_parameters)
 
         c = DiscreteFactor([1, 2], np.array([1, 2, 1, 0]).reshape((2, 2)))
@@ -242,6 +242,24 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         assert_array_almost_equal(b.data, final_b.data)
         self.assertAlmostEqual(change1, 0, delta=10**-10)
 
+    def test_update_beliefs_disconnected(self):
+        a = DiscreteFactor([1, 2], data=np.array([[1, 2], [3, 4]]))
+        b = DiscreteFactor([4, 5], data=np.array([[5, 6], [8, 9]]))
+
+        model = Model([a, b])
+        model.build_graph()
+        inference = LoopyBeliefUpdateInference(model)
+
+        inference.set_up_belief_update()
+        change = inference.update_beliefs(number_of_updates=35)
+        print change
+
+        for factor in model.factors:
+            print factor, np.sum(factor.data)
+
+        self.assertAlmostEqual(np.sum([1, 2, 3, 4]), np.sum(a.data))
+        self.assertAlmostEqual(np.sum([5, 6, 8, 9]), np.sum(b.data))
+
     def test_belief_update_larger_tree(self):
         a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]]))
         b = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]]))
@@ -299,44 +317,6 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         self.assertEqual(d.variables, c.variables)
         self.assertEqual(d.axis_to_variable, c.axis_to_variable)
         assert_array_almost_equal(d.data, c.data)
-
-    def test_get_log_likelihood(self):
-        a = DiscreteFactor([1, 2], data=np.array([[1, 2.0], [3, 4]]))
-        b = DiscreteFactor([2, 3], data=np.array([[3, 4.0], [5, 7]]))
-        # 1 2 3  |
-        # -------+----------
-        # 0 0 0  | 1 * 3 = 3
-        # 0 0 1  | 1 * 4 = 4
-        # 0 1 0  | 2 * 5 = 10
-        # 0 1 1  | 2 * 7 = 14
-        # 1 0 0  | 3 * 3 = 9
-        # 1 0 1  | 3 * 4 = 12
-        # 1 1 0  | 4 * 5 = 20
-        # 1 1 1  | 4 * 7 = 28
-        #
-        # p(1=0, 2, 3=1) = [4, 14] / 100
-        # => p(1=0, 3=1) = 18 / 100
-
-        model = Model([a, b])
-        evidence = {1: 0, 3: 1}
-        model.build_graph()
-        inference = LoopyBeliefUpdateInference(model)
-
-        c = inference.exhaustive_enumeration()
-        print c
-        print c.data
-        print c.get_potential(evidence.items())
-
-        model.set_evidence(evidence)
-        inference = LoopyBeliefUpdateInference(model)
-        inference.set_up_belief_update()
-
-        change = inference.update_beliefs(number_of_updates=35)
-        print 'Last iteration: ', change
-
-        actual_log_likelihood = model.get_log_likelihood(evidence=evidence)
-        print actual_log_likelihood, np.log(0.18)
-        self.assertAlmostEqual(actual_log_likelihood, np.log(0.18))
 
 
 if __name__ == '__main__':

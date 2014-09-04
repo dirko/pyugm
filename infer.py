@@ -1,5 +1,5 @@
 from factor import DiscreteFactor
-from Queue import PriorityQueue, Queue
+from Queue import PriorityQueue, Queue, Empty
 import numpy as np
 
 
@@ -90,7 +90,7 @@ class Model:
         """ param evidence: list of (variable name, value) pairs """
         for variable, value in evidence.items():
             for factor in self.variables_to_factors[variable]:
-                factor.set_evidence([(variable, value)], normalize=normalize, inplace=True)
+                factor.set_evidence({variable: value}, normalize=normalize, inplace=True)
 
     def get_marginals(self, variable, normalize=True):
         """
@@ -100,27 +100,18 @@ class Model:
 
     def set_parameters(self, parameters):
         """
-        Iterate through factors and fill factor potentials with these new parameters.
+        Iterate through factors and fill factor potentials with exp of these new parameters.
         """
         for factor in self.factors:
             original_shape = factor.data.shape
             new_data = factor.data.reshape(-1, )
-            for i, parameter in enumerate(factor.parameters.reshape(-1, )):
-                if isinstance(parameter, str):
-                    new_data[i] = parameters[self.parameters_to_index[parameter]]
-                else:
-                    new_data[i] = parameter
-            factor.data = new_data.reshape(original_shape)
-
-    def get_log_likelihood(self, evidence):
-        """ Return the log likelihood of the evidence. Must be called on calibrated model. """
-        log_likelihood = 0.0
-        for factor in self.factors:
-            print 'log_lik dat', factor, factor.data
-            print 'log_lik', factor, factor.get_potential(evidence.items()), factor.data.sum()
-            print 'log_marg', factor.marginalize(evidence.keys()).data
-            log_likelihood += np.log(factor.get_potential(evidence.items()).sum()) - np.log(factor.data.sum())
-        return log_likelihood
+            if factor.parameters is not None:
+                for i, parameter in enumerate(factor.parameters.reshape(-1, )):
+                    if isinstance(parameter, str):
+                        new_data[i] = np.exp(parameters[self.parameters_to_index[parameter]])
+                    else:
+                        new_data[i] = parameter
+                factor.data = new_data.reshape(original_shape)
 
 
 class LoopyBeliefUpdateInference:
@@ -181,16 +172,19 @@ class LoopyBeliefUpdateInference:
         number_of_consecutive_zero_updates = 0
         update_num = 0
         for update_num in xrange(number_of_updates):
-            print '-------new update------', update_num
-            priority, edge = self.belief_update_queue.get_nowait()
-            self.belief_update_queue.task_done()
+            average_change_per_cell = 0
+            if not self.belief_update_queue.empty():
+                print '-------new update------', update_num
+                print 'empty? ', self.belief_update_queue.empty()
+                priority, edge = self.belief_update_queue.get_nowait()
+                self.belief_update_queue.task_done()
 
-            average_change_per_cell = self.update_belief(edge)
-            total_average_change_per_cell += average_change_per_cell
+                average_change_per_cell = self.update_belief(edge)
+                total_average_change_per_cell += average_change_per_cell
 
-            # Update queue
-            reverse_edge = (edge[1], edge[0])
-            self.belief_update_queue.put((-average_change_per_cell, reverse_edge))
+                # Update queue
+                reverse_edge = (edge[1], edge[0])
+                self.belief_update_queue.put((-average_change_per_cell, reverse_edge))
 
             if average_change_per_cell == 0:
                 number_of_consecutive_zero_updates += 1
