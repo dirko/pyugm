@@ -52,8 +52,8 @@ class DiscreteFactor:
         variables_in_self_not_in_other = [variable[0] for variable in self.variables
                                           if variable not in other_factor.variables]
         other_variable_order += variables_in_self_not_in_other
-        print 'other_var_ord', other_variable_order
-        print 'variables_in_self_not_ot', variables_in_self_not_in_other
+        #print 'other_var_ord', other_variable_order
+        #print 'variables_in_self_not_ot', variables_in_self_not_in_other
         new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
                           for axis in xrange(len(other_variable_order))]
 
@@ -112,7 +112,7 @@ class DiscreteFactor:
         if normalize:
             return_data /= return_data.sum()
         return_factor.data = return_data
-        print 'set_ev', self.variables, return_data
+        #print 'set_ev', self.variables, return_data
         return return_factor
 
     def _rotate_other(self, other_factor):
@@ -120,10 +120,10 @@ class DiscreteFactor:
                                 for other_axis in xrange(len(other_factor.data.shape))]
         new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
                           for axis in xrange(len(other_variable_order))]
-        print self.variables
-        print other_factor.variables
-        print other_variable_order
-        print new_axis_order
+        #print self.variables
+        #print other_factor.variables
+        #print other_variable_order
+        #print new_axis_order
         return other_factor.data.transpose(new_axis_order)
 
     def __str__(self):

@@ -175,30 +175,6 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
             self.assertDictEqual(separator_factor2.cardinalities, s.cardinalities)
             assert_array_almost_equal(separator_factor2.data, s.data)
 
-    def test_set_up_update_queue(self):
-        a = DiscreteFactor([(0, 2), (1, 2), (2, 2)])
-        b = DiscreteFactor([(2, 2), (3, 3), (4, 2)])
-        c = DiscreteFactor([(3, 3), (4, 2), (5, 2)])
-
-        model = Model([a, b, c])
-        model.build_graph()
-        inference = LoopyBeliefUpdateInference(model)
-        inference.set_up_belief_update()
-
-        priority_edges = set()
-        while not inference.belief_update_queue.empty():
-            edge = inference.belief_update_queue.get_nowait()
-            priority_edges.add(edge)
-
-        print priority_edges
-        print inference.belief_update_queue.qsize()
-        expected_set = {(a, b), (b, c)}
-        priority_edges_set = set()
-        for priority_edge in priority_edges:
-            self.assertEqual(priority_edge[0], -np.inf)
-            priority_edges_set.add(priority_edge[1])
-        assertEdgeSetsEqual(self, priority_edges_set, expected_set)
-
     def test_update_beliefs_small(self):
         a = DiscreteFactor([0, 1])
         b = DiscreteFactor([1, 2])
@@ -243,12 +219,21 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         self.assertAlmostEqual(change1, 0, delta=10**-10)
 
     def test_update_beliefs_disconnected(self):
-        a = DiscreteFactor([1, 2], data=np.array([[1, 2], [3, 4]]))
-        b = DiscreteFactor([4, 5], data=np.array([[5, 6], [8, 9]]))
+        a = DiscreteFactor([(1, 2), (2, 2)], data=np.array([[1, 2], [3, 4]]))
+        b = DiscreteFactor([(2, 2), (3, 2)], data=np.array([[1, 2], [3, 4]]))
+        c = DiscreteFactor([(4, 2), (5, 2)], data=np.array([[5, 6], [8, 9]]))
+        d = DiscreteFactor([(5, 2), (6, 2)], data=np.array([[1, 6], [2, 3]]))
+        e = DiscreteFactor([(7, 2), (8, 2)], data=np.array([[2, 1], [2, 3]]))
 
-        model = Model([a, b])
+        model = Model([a, b, c, d, e])
         model.build_graph()
+        for factor in model.factors:
+            print 'before', factor, np.sum(factor.data)
+
         inference = LoopyBeliefUpdateInference(model)
+
+        exhaustive_answer = inference.exhaustive_enumeration()  # do first because update_beliefs changes the factors
+        print 'Exhaust', np.sum(exhaustive_answer.data)
 
         inference.set_up_belief_update()
         change = inference.update_beliefs(number_of_updates=35)
@@ -257,8 +242,10 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         for factor in model.factors:
             print factor, np.sum(factor.data)
 
-        self.assertAlmostEqual(np.sum([1, 2, 3, 4]), np.sum(a.data))
-        self.assertAlmostEqual(np.sum([5, 6, 8, 9]), np.sum(b.data))
+        for factor in model.factors:
+            self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(factor.data))
+        self.assertAlmostEqual(exhaustive_answer.marginalize([7]).get_potential([(7, 1)]),
+                               list(model.variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
 
     def test_belief_update_larger_tree(self):
         a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]]))
@@ -274,6 +261,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         #
         model = Model([a, b, c, d, e, f])
         model.build_graph()
+        print 'edges', model.edges
         inference = LoopyBeliefUpdateInference(model)
 
         exhaustive_answer = inference.exhaustive_enumeration()  # do first because update_beliefs changes the factors

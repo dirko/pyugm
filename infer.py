@@ -9,6 +9,7 @@ class Model:
         self.cardinalities = dict()  # variable name to int
         self.variables_to_factors = dict()  # variable name to factor
         self.edges = set()  # pairs of factors
+        self.disconnected_subgraphs = []  # list of sets of factors
 
         for factor in factor_list:
             self.add_factor(factor)
@@ -65,6 +66,10 @@ class Model:
                 add_edge_to_set(first_candidate_sepset, self.edges)
                 mark_factors_in_edge(first_candidate_sepset, marked_factors, unmarked_factors)
 
+                print 'variable', variable, factors
+                print 'sepset', first_candidate_sepset
+                print 'marked', marked_factors, unmarked_factors
+                print
                 while len(marked_factors) < len(factors):
                     largest_sepset = self.get_largest_unmarked_sepset(variable, list(factors), marked_factors,
                                                                       unmarked_factors)
@@ -72,6 +77,8 @@ class Model:
                     if largest_sepset is not None:
                         add_edge_to_set(largest_sepset, self.edges)
                         mark_factors_in_edge(largest_sepset, marked_factors, unmarked_factors)
+
+        self.find_disconnected_subgraphs()
 
     @staticmethod
     def get_largest_unmarked_sepset(variable, factors, marked_factors, unmarked_factors):
@@ -85,6 +92,35 @@ class Model:
         else:
             max_sepset = max(sepset_sizes, key=lambda x: x[1])
         return max_sepset[0]
+
+    def find_disconnected_subgraphs(self):
+        """ Finds islands of factor nodes and adds them to disconnected_subgraphs. """
+
+        def connected_factors(factor_to_follow):
+            return_set = set()
+            for edge in self.edges:
+                if factor_to_follow in edge:
+                    return_set.add(edge[0] if edge[1] == factor_to_follow else edge[1])
+            return return_set
+
+        visited_factors = set()
+        for factor in self.factors:
+            new_set = set()
+            if factor not in visited_factors:
+                new_set.add(factor)
+                visited_factors.add(factor)
+                factors_to_visit = connected_factors(factor)
+                if len(factors_to_visit) > 0:
+                    next_factor = factors_to_visit.pop()
+                    while next_factor:
+                        new_set.add(next_factor)
+                        visited_factors.add(next_factor)
+                        factors_to_visit = factors_to_visit.union(connected_factors(next_factor).difference(visited_factors))
+                        try:
+                            next_factor = factors_to_visit.pop()
+                        except KeyError:
+                            next_factor = None
+                self.disconnected_subgraphs.append(new_set)
 
     def set_evidence(self, evidence, normalize=False):
         """ param evidence: list of (variable name, value) pairs """
@@ -114,10 +150,42 @@ class Model:
                 factor.data = new_data.reshape(original_shape)
 
 
+class FloodingProtocol:
+    """
+    Defines an update ordering
+    """
+    def __init__(self, model, max_iterations=np.inf, converge_delta=10**-10):
+        self._edges = list(model.edges)
+        self._current_edge_index = 0
+        self._total_iterations = 0
+        self._max_iterations = max_iterations
+        self._current_iteration_delta = 0
+        self._converge_delta = converge_delta
+
+    def next_edge(self, last_update_change):
+        """ Get the next edge to update """
+        self._current_iteration_delta += last_update_change
+        if self._edges:
+            next_edge = self._edges[self._current_edge_index / 2]
+        else:
+            return None
+        if self._current_edge_index % 2 == 1:
+            reversed_edge = (next_edge[1], next_edge[0])
+            next_edge = reversed_edge
+
+        self._current_edge_index += 1
+        if self._current_edge_index / 2 >= len(self._edges):
+            self._current_edge_index = 0
+            self._total_iterations += 1
+            if self._total_iterations > self._max_iterations or self._current_iteration_delta < self._converge_delta:
+                next_edge = None
+            self._current_iteration_delta = 0.0
+        return next_edge
+
+
 class LoopyBeliefUpdateInference:
     def __init__(self, model):
         self.separator_potentials = dict()  # edge to pairs of separator potentials
-        self.belief_update_queue = PriorityQueue()  # edges to update beliefs for
         self.model = model
 
     def set_up_belief_update(self):
@@ -131,13 +199,6 @@ class LoopyBeliefUpdateInference:
             self.separator_potentials[edge] = separator_factors
             self.separator_potentials[(edge[1], edge[0])] = separator_factors
 
-        # Sets up priority queue of edges to update
-        # NOTE: Should be possible to set up scheme here so that if the graph is a tree only a forward
-        # and backward pass will be necessary.
-        for edge in list(self.model.edges):
-            priority = -np.inf  # highest priority
-            self.belief_update_queue.put((priority, edge))
-
     def update_belief(self, edge):
         old_separators = self.separator_potentials[edge]
         variables_to_keep = old_separators[0].variable_set
@@ -147,8 +208,8 @@ class LoopyBeliefUpdateInference:
         # A = Phi* / Phi
         new_separator_divided = new_separator.multiply(old_separators[0], divide=True, update_inplace=False)
         # Psi** = Psi* x A
-        print edge[0], '->', edge[1]
-        print new_separator.data.shape, '/', old_separators[0].data.shape, '=', new_separator_divided.data.shape
+        #print edge[0], '->', edge[1]
+        #print new_separator.data.shape, '/', old_separators[0].data.shape, '=', new_separator_divided.data.shape
         edge[1].multiply(new_separator_divided)
 
         new_separators = (new_separator, old_separators[0])
@@ -157,55 +218,38 @@ class LoopyBeliefUpdateInference:
         self.separator_potentials[reverse_edge] = new_separators
 
         num_cells = np.prod(new_separator.data.shape) * 1.0
-        print new_separator.data.shape
-        print old_separators[0].data.shape
-        print num_cells
+        #print new_separator.data.shape
+        #print old_separators[0].data.shape
+        #print num_cells
         #average_change_per_cell = abs(new_separator.data - old_separators[0].data).sum() / num_cells
         average_change_per_cell = abs(new_separator.data - new_separator._rotate_other(old_separators[0])).sum() / num_cells
-        print average_change_per_cell
-        print new_separator.data
+        #print average_change_per_cell
+        #print new_separator.data
 
         return average_change_per_cell
 
-    def update_beliefs(self, number_of_updates=100, number_of_zero_updates_before_complete_pass=2, delta=10**-10):
-        total_average_change_per_cell = 0
-        number_of_consecutive_zero_updates = 0
-        update_num = 0
-        for update_num in xrange(number_of_updates):
-            average_change_per_cell = 0
-            if not self.belief_update_queue.empty():
-                print '-------new update------', update_num
-                print 'empty? ', self.belief_update_queue.empty()
-                priority, edge = self.belief_update_queue.get_nowait()
-                self.belief_update_queue.task_done()
+    def update_beliefs(self, update_order=None, number_of_updates=100):
+        if not update_order:
+            update_order = FloodingProtocol(self.model, max_iterations=number_of_updates)
 
-                average_change_per_cell = self.update_belief(edge)
-                total_average_change_per_cell += average_change_per_cell
+        average_change_per_cell = 0
+        edge = update_order.next_edge(average_change_per_cell)
+        while edge:
+            average_change_per_cell = self.update_belief(edge)
+            print 'Edge: ', edge, average_change_per_cell
+            edge = update_order.next_edge(average_change_per_cell)
 
-                # Update queue
-                reverse_edge = (edge[1], edge[0])
-                self.belief_update_queue.put((-average_change_per_cell, reverse_edge))
+        # Find normaliser
+        total_z = 1
+        for island in self.model.disconnected_subgraphs:
+            total_z *= np.sum(list(island)[0].data)
+        # Multiply so each factor has the same normaliser
+        for island in self.model.disconnected_subgraphs:
+            island_z = np.sum(list(island)[0].data)
+            for factor in list(island):
+                factor.data *= (total_z / island_z)
 
-            if average_change_per_cell == 0:
-                number_of_consecutive_zero_updates += 1
-            else:
-                number_of_consecutive_zero_updates = 0
-
-            if number_of_consecutive_zero_updates == number_of_zero_updates_before_complete_pass:
-                edge_list = list(self.model.edges)
-                complete_pass_change = 0
-                for edge in edge_list:
-                    complete_pass_change += self.update_belief(edge)
-                edge_list.reverse()
-                for edge in edge_list:
-                    reverse_edge = (edge[1], edge[0])
-                    complete_pass_change += self.update_belief(reverse_edge)
-                if complete_pass_change < delta:
-                    break
-                else:
-                    number_of_consecutive_zero_updates = 0
-
-        return total_average_change_per_cell / number_of_updates, update_num
+        return update_order._current_iteration_delta, update_order._total_iterations
 
     def exhaustive_enumeration(self):
         """ Compute the complete probability table by enumerating all variable instantiations """

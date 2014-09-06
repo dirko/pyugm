@@ -93,7 +93,7 @@ def example_learning_run():
     factors = [theta1, theta2, lambd1, lambd2, a]
     for i, s in enumerate(seqs[0]):
         a = DiscreteFactor([(i, 2), (i + 100, 2), (2000, parameter_discrete), (2001, parameter_discrete)], np.array(emissions))
-        a.set_evidence([(i + 100, s)], normalize=True, inplace=True)
+        a.set_evidence({i + 100: s}, normalize=True, inplace=True)
         factors.append(a)
 
         if i != 0:

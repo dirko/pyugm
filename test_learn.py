@@ -68,9 +68,9 @@ class TestLearnMRFParameters(unittest.TestCase):
         self.assertAlmostEqual(actual_log_likelihood, np.log(0.18) + prior_factor)
 
     def test_learn_binary(self):
-        tc1 = 5
-        tc2 = 10
-        obs = [DiscreteFactor([(i, 2), ('b', 1)], parameters=np.array(['m0', 'm1'])) for i in xrange(tc1 + tc2)]
+        tc1 = 31
+        tc2 = 3
+        obs = [DiscreteFactor([(i, 2)], parameters=np.array(['m0', 'm1'])) for i in xrange(tc1 + tc2)]
         model = Model(obs)
         evidence = dict((i, 0 if i < tc1 else 1) for i in xrange(tc1 + tc2))
         print 'evidence', evidence
