@@ -236,7 +236,7 @@ class LoopyBeliefUpdateInference:
         edge = update_order.next_edge(average_change_per_cell)
         while edge:
             average_change_per_cell = self.update_belief(edge)
-            print 'Edge: ', edge, average_change_per_cell
+            #print 'Edge: ', edge, average_change_per_cell
             edge = update_order.next_edge(average_change_per_cell)
 
         # Find normaliser
