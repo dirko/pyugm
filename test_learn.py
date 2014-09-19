@@ -67,9 +67,58 @@ class TestLearnMRFParameters(unittest.TestCase):
         print actual_log_likelihood, np.log(0.18) + prior_factor, prior_factor
         self.assertAlmostEqual(actual_log_likelihood, np.log(0.18) + prior_factor)
 
-    def test_learn_binary(self):
-        tc1 = 31
-        tc2 = 3
+    def test_evaluate_derivative(self):
+        D = 8
+        delta = 0.000001
+        for variable_index in range(D):
+            a = DiscreteFactor(['1', '2'], parameters=np.array([['a', 'b'], ['c', 'd']]))
+            b = DiscreteFactor(['2', '3'], parameters=np.array([['e', 'f'], ['g', 'h']]))
+
+            model = Model([a, b])
+            D = len(model.parameters_to_index)
+
+            delta_vector = np.zeros(D)
+            delta_vector[variable_index] = delta
+
+            parameters = np.zeros(D)
+            parameters_plus_delta = np.zeros(D)
+            parameter_out_of_order = [1, 2, 3, 4, 3, 4, 5, 7]
+            parameter_names = [c for c in 'abcdefgh']
+            for param, param_name in zip(parameter_out_of_order, parameter_names):
+                parameters[model.parameters_to_index[param_name]] = np.log(param)
+                parameters_plus_delta[model.parameters_to_index[param_name]] = np.log(param)
+            parameters_plus_delta += delta_vector
+
+            evidence = {'1': 0, '3': 1}
+            prior_sigma2 = 2.3
+            model.build_graph()
+
+            learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
+            learner.parameters = parameters
+            actual_log_likelihood1, actual_derivative1 = learner.evaluate_log_likelihood_and_derivative(evidence)
+
+            learner.parameters = parameters_plus_delta
+            actual_log_likelihood2, actual_derivative2 = learner.evaluate_log_likelihood_and_derivative(evidence)
+
+            expected_deriv = (actual_log_likelihood1 - actual_log_likelihood2) / delta  # * delta_vector / delta / delta
+
+            prior_factor = D * (-0.5 * np.log((2.0 * np.pi * prior_sigma2)))
+            print 'pn', prior_factor, D * -0.5 * np.log(prior_sigma2)
+            prior_factor += sum([-0.5 / (prior_sigma2) * param ** 2.0 for param in parameters])
+            print 'dim', D
+            print actual_log_likelihood1, np.log(0.18) + prior_factor, prior_factor
+            self.assertAlmostEqual(actual_log_likelihood1, np.log(0.18) + prior_factor)
+            self.assertAlmostEqual(actual_log_likelihood2, np.log(0.18) + prior_factor, delta=10.0**-3)
+
+            print 'derivs'
+            print actual_derivative1
+            print actual_derivative2
+            print expected_deriv
+            self.assertAlmostEqual(expected_deriv, actual_derivative1[variable_index], delta=10.0**-4)
+
+    def test_learn_without_gradient_binary(self):
+        tc1 = 70
+        tc2 = 14
         obs = [DiscreteFactor([(i, 2)], parameters=np.array(['m0', 'm1'])) for i in xrange(tc1 + tc2)]
         model = Model(obs)
         evidence = dict((i, 0 if i < tc1 else 1) for i in xrange(tc1 + tc2))
@@ -94,11 +143,45 @@ class TestLearnMRFParameters(unittest.TestCase):
         import scipy.optimize
         x0 = np.zeros(2)
         print 'zeros', x0
-        expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True)
+        expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
         #x0 = np.ones(2) * 0.000
         actual_ans = learner.fit_without_gradient(evidence).ans#, x0)
         print actual_ans
         print expected_ans
-        assert_array_almost_equal(actual_ans[0], expected_ans[0])
         self.assertAlmostEqual(actual_ans[1], expected_ans[1])
+        assert_array_almost_equal(actual_ans[0], expected_ans[0], decimal=4)
 
+    def test_learn_with_gradient_binary(self):
+        tc1 = 70
+        tc2 = 14
+        obs = [DiscreteFactor([(i, 2)], parameters=np.array(['m0', 'm1'])) for i in xrange(tc1 + tc2)]
+        model = Model(obs)
+        evidence = dict((i, 0 if i < tc1 else 1) for i in xrange(tc1 + tc2))
+        print 'evidence', evidence
+        model.build_graph()
+        print sorted(model.edges, key=lambda x: str(x))
+
+        learner = LearnMRFParameters(model, prior=1.0)
+
+        def nlog_posterior(x):
+            c1 = tc1
+            c2 = tc2
+            x = x.reshape((2, 1))
+            N = np.zeros((2, 1))
+            Lamb = np.array([[1.0, 0], [0, 1.0]])
+            lp = -0.5 * np.dot(np.dot((x - N).T, Lamb), (x - N))
+            lp += -0.5 * x.shape[0] * np.log(2.0 * np.pi)
+            lp += +0.5 * np.log(np.linalg.det((Lamb)))
+            lp += np.dot(x.T, np.array([c1, c2])) - (c1 + c2) * np.log(sum(np.exp(x)))
+            return -lp[0, 0]
+
+        import scipy.optimize
+        x0 = np.zeros(2)
+        print 'zeros', x0
+        expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
+        #x0 = np.ones(2) * 0.000
+        actual_ans = learner.fit(evidence).ans#, x0)
+        print actual_ans
+        print expected_ans
+        self.assertAlmostEqual(actual_ans[1], expected_ans[1])
+        assert_array_almost_equal(actual_ans[0], expected_ans[0], decimal=5)

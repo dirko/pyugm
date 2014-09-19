@@ -214,8 +214,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         final_b = DiscreteFactor([1, 2])
         final_b.data *= 2
 
-        assert_array_almost_equal(a.data, final_a.data)
-        assert_array_almost_equal(b.data, final_b.data)
+        assert_array_almost_equal(a.get_data(), final_a.get_data())
+        assert_array_almost_equal(b.get_data(), final_b.get_data())
         self.assertAlmostEqual(change1, 0, delta=10**-10)
 
     def test_update_beliefs_disconnected(self):
@@ -243,7 +243,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
             print factor, np.sum(factor.data)
 
         for factor in model.factors:
-            self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(factor.data))
+            self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(factor.get_data()))
         self.assertAlmostEqual(exhaustive_answer.marginalize([7]).get_potential([(7, 1)]),
                                list(model.variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
 
@@ -266,6 +266,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
 
         exhaustive_answer = inference.exhaustive_enumeration()  # do first because update_beliefs changes the factors
 
+        print 'bp'
         inference.set_up_belief_update()
         change = inference.update_beliefs(number_of_updates=35)
         print change
@@ -273,8 +274,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         for factor in model.factors:
             print factor, np.sum(factor.data)
 
-        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(a.data))
-        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(d.data))
+        self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(a.get_data()))
+        self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(d.get_data()))
 
     def test_exhaustive_enumeration(self):
         a = DiscreteFactor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))

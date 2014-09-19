@@ -1,3 +1,4 @@
+## 1 July 2014
 Maybe concentrate on getting a discrete bayesian network going first.
 Factor out the update ordering.
 Add gaussian priors [rather dirichlet priors?] - variable and conditional. (Variational/expectation update?)
@@ -11,4 +12,13 @@ Gaussian prior.
 Factors should now be parametrised - add place where parameter variables can be added to a factor.
 Use BFGS to find MAP
 Then approximate posterior with Laplace approximation using Hessian returned by BFGS.
+
+## 14 September 2014
+Running into numerical problems - time to factor out the normalising constant.
+This will complicate testing - for now replace existing data tests with data * constant.
+For new tests use accessor methods.
+Wondering about architecture - should only inplace updates be allowed?
+
+## 17 September 2014
+Example HMM.
 

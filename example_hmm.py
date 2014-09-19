@@ -51,22 +51,25 @@ def example_fully_specified_run():
 
 
 def example_learning_run():
-    seqs = [[1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-            [1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-            [1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-            [1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-            [1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-            [1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0]]
+    seqs = [[1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1],
+            [1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1],
+            [1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1],
+            [1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1],
+            [1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1],
+            [1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1]]
     factors = []
     evidence = {}
     for s, seq in enumerate(seqs):
         for e, elem in enumerate(seq):
-            factors.append(DiscreteFactor([e + 100 * s, e + 1 + 100 * s], parameters=np.array([['a', 'b'], ['c', 'd']])))
-            evidence[e + 100 * s] = elem
+            factors.append(DiscreteFactor([e + 100 * s, e + 1 + 100 * s],
+                                          parameters=np.array([['a', 'b'], ['c', 'd']])))
+            factors.append(DiscreteFactor([e + 100 * s, e + 100 * s + 10000],
+                                          parameters=np.array([['e', 'f'], ['g', 'h']])))
+            evidence[e + 100 * s + 10000] = elem
     model = Model(factors)
     model.build_graph()
     learner = LearnMRFParameters(model, prior=1.0)
-    learner.fit_without_gradient(evidence)
+    learner.fit(evidence)
     print learner.ans
 
 if __name__ == '__main__':

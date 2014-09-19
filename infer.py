@@ -66,10 +66,10 @@ class Model:
                 add_edge_to_set(first_candidate_sepset, self.edges)
                 mark_factors_in_edge(first_candidate_sepset, marked_factors, unmarked_factors)
 
-                print 'variable', variable, factors
-                print 'sepset', first_candidate_sepset
-                print 'marked', marked_factors, unmarked_factors
-                print
+                #print 'variable', variable, factors
+                #print 'sepset', first_candidate_sepset
+                #print 'marked', marked_factors, unmarked_factors
+                #print
                 while len(marked_factors) < len(factors):
                     largest_sepset = self.get_largest_unmarked_sepset(variable, list(factors), marked_factors,
                                                                       unmarked_factors)
@@ -148,6 +148,7 @@ class Model:
                     else:
                         new_data[i] = parameter
                 factor.data = new_data.reshape(original_shape)
+                factor.log_normalizer = np.log(1.0)
 
 
 class FloodingProtocol:
@@ -200,13 +201,19 @@ class LoopyBeliefUpdateInference:
             self.separator_potentials[(edge[1], edge[0])] = separator_factors
 
     def update_belief(self, edge):
+        #print 'starting update', edge
+        #print edge[0].data
+        #print edge[1].data
         old_separators = self.separator_potentials[edge]
         variables_to_keep = old_separators[0].variable_set
 
         # Phi** = Sum Psi
+        #print 'before marg', edge[0].data, variables_to_keep
         new_separator = edge[0].marginalize(variables_to_keep)
+        #print 'before div', new_separator.data
         # A = Phi* / Phi
         new_separator_divided = new_separator.multiply(old_separators[0], divide=True, update_inplace=False)
+        #print 'after div', new_separator_divided.log_normalizer
         # Psi** = Psi* x A
         #print edge[0], '->', edge[1]
         #print new_separator.data.shape, '/', old_separators[0].data.shape, '=', new_separator_divided.data.shape
@@ -240,14 +247,14 @@ class LoopyBeliefUpdateInference:
             edge = update_order.next_edge(average_change_per_cell)
 
         # Find normaliser
-        total_z = 1
+        total_z = 0.0
         for island in self.model.disconnected_subgraphs:
-            total_z *= np.sum(list(island)[0].data)
+            total_z += np.log(np.sum(list(island)[0].data)) + list(island)[0].log_normalizer
         # Multiply so each factor has the same normaliser
         for island in self.model.disconnected_subgraphs:
-            island_z = np.sum(list(island)[0].data)
+            island_z = np.log(np.sum(list(island)[0].data)) + list(island)[0].log_normalizer
             for factor in list(island):
-                factor.data *= (total_z / island_z)
+                factor.log_normalizer += (total_z - island_z)
 
         return update_order._current_iteration_delta, update_order._total_iterations
 
