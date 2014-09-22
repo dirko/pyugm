@@ -22,6 +22,7 @@ class LearnMRFParameters:
             self.prior_precision = np.eye(self.dimension) * prior
             self.prior_normaliser = (-0.5 * self.dimension * np.log(2.0 * np.pi)
                                      + 0.5 * np.log(np.linalg.det((self.prior_precision))))
+        self.iterations = []
 
     def evaluate_log_likelihood(self, evidence):
         self.model.set_parameters(self.parameters)
@@ -63,14 +64,14 @@ class LearnMRFParameters:
         empirical_expected_counts = self.accumulate_expected_counts()
 
         log_likelihood = log_Z_observed - log_Z_total
-        derivative = model_expected_counts - empirical_expected_counts
+        derivative = empirical_expected_counts - model_expected_counts
 
         if self.dimension > 0:
-            derivative += np.dot(self.prior_precision, (self.parameters - self.prior_location))
+            derivative += -np.dot(self.prior_precision, (self.parameters - self.prior_location))
             log_likelihood += -0.5 * np.dot(np.dot((self.parameters - self.prior_location).T,
                                                    self.prior_precision), (self.parameters - self.prior_location))
             log_likelihood += self.prior_normaliser
-        print 'Z: ', log_likelihood, '   ', log_Z_observed, log_Z_total
+        #print 'Z: ', log_likelihood, '   ', log_Z_observed, log_Z_total
         return log_likelihood, derivative
 
     def accumulate_expected_counts(self):
@@ -104,7 +105,11 @@ class LearnMRFParameters:
         self.ans = scipy.optimize.fmin_l_bfgs_b(f, x0, approx_grad=True, pgtol=10.0**-10)
         return self
 
-    def fit(self, evidence, initial_parameters=None):
+    def fit(self,
+            evidence,
+            initial_parameters=None,
+            optimizer=scipy.optimize.fmin_l_bfgs_b,
+            optimizer_kwargs={'pgtol': 10.0**-10}):
         self.evidence = evidence
         x0 = self.parameters
         if initial_parameters is not None:
@@ -112,9 +117,11 @@ class LearnMRFParameters:
 
         def f(x):
             self.parameters = x
-            print np.exp(x)
+            #print np.exp(x)
             ll, grad = self.evaluate_log_likelihood_and_derivative(self.evidence)
-            return -ll, grad
+            self.iterations.append([ll, x])
+            return -ll, -grad
 
-        self.ans = scipy.optimize.fmin_l_bfgs_b(f, x0, pgtol=10.0**-10)
+        self.ans = optimizer(f, x0, **optimizer_kwargs)
+        #self.ans = scipy.optimize.fmin_l_bfgs_b(f, x0, pgtol=10.0**-10)
         return self
