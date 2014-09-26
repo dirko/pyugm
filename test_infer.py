@@ -219,11 +219,11 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         self.assertAlmostEqual(change1, 0, delta=10**-10)
 
     def test_update_beliefs_disconnected(self):
-        a = DiscreteFactor([(1, 2), (2, 2)], data=np.array([[1, 2], [3, 4]]))
-        b = DiscreteFactor([(2, 2), (3, 2)], data=np.array([[1, 2], [3, 4]]))
-        c = DiscreteFactor([(4, 2), (5, 2)], data=np.array([[5, 6], [8, 9]]))
-        d = DiscreteFactor([(5, 2), (6, 2)], data=np.array([[1, 6], [2, 3]]))
-        e = DiscreteFactor([(7, 2), (8, 2)], data=np.array([[2, 1], [2, 3]]))
+        a = DiscreteFactor([(1, 2), (2, 2)], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
+        b = DiscreteFactor([(2, 2), (3, 2)], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
+        c = DiscreteFactor([(4, 2), (5, 2)], data=np.array([[5, 6], [8, 9]], dtype=np.float64))
+        d = DiscreteFactor([(5, 2), (6, 2)], data=np.array([[1, 6], [2, 3]], dtype=np.float64))
+        e = DiscreteFactor([(7, 2), (8, 2)], data=np.array([[2, 1], [2, 3]], dtype=np.float64))
 
         model = Model([a, b, c, d, e])
         model.build_graph()
@@ -248,12 +248,12 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
                                list(model.variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
 
     def test_belief_update_larger_tree(self):
-        a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]]))
-        b = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]]))
-        c = DiscreteFactor([2, 3], data=np.array([[1, 2], [3, 4]]))
-        d = DiscreteFactor([3], data=np.array([2, 1]))
-        e = DiscreteFactor([0], data=np.array([4, 1]))
-        f = DiscreteFactor([2], data=np.array([1, 2]))
+        a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]], dtype=np.float64))
+        b = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]], dtype=np.float64))
+        c = DiscreteFactor([2, 3], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
+        d = DiscreteFactor([3], data=np.array([2, 1], dtype=np.float64))
+        e = DiscreteFactor([0], data=np.array([4, 1], dtype=np.float64))
+        f = DiscreteFactor([2], data=np.array([1, 2], dtype=np.float64))
         #
         # a{0 1} - b{1 2} - c{2 3} - d{3}
         #    |       |

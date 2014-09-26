@@ -100,7 +100,7 @@ class TestLearnMRFParameters(unittest.TestCase):
             learner.parameters = parameters_plus_delta
             actual_log_likelihood2, actual_derivative2 = learner.evaluate_log_likelihood_and_derivative(evidence)
 
-            expected_deriv = (actual_log_likelihood1 - actual_log_likelihood2) / delta  # * delta_vector / delta / delta
+            expected_deriv = (actual_log_likelihood2 - actual_log_likelihood1) / delta  # * delta_vector / delta / delta
 
             prior_factor = D * (-0.5 * np.log((2.0 * np.pi * prior_sigma2)))
             print 'pn', prior_factor, D * -0.5 * np.log(prior_sigma2)

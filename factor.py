@@ -1,4 +1,60 @@
 import numpy as np
+from numba import jit, void, f8, i1, b1, njit
+
+
+#@njit
+@njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1))
+def multiply_factors(data1, data2,
+                     strides1, strides2,
+                     card2,
+                     assignment1, assignment2,
+                     variable1_to_2, divide):
+    """
+    Fast inplace factor multiplication. data2 is the larger array, containing all the variables in data1 and also
+    others.
+    """
+    # Clear assignments
+    for var1_i in range(len(assignment1)):
+        assignment1[var1_i] = 0
+    for var2_i in range(len(assignment2)):
+        assignment2[var2_i] = 0
+    done = False
+
+    while not done:
+        # Assign first from second assignment
+        for var1_i in range(len(assignment1)):
+            assignment1[var1_i] = assignment2[variable1_to_2[var1_i]]
+        # Get indices in data
+        assignment1_index = 0
+        for var1_i in range(len(strides1)):
+            assignment1_index += strides1[var1_i] * assignment1[var1_i]
+        assignment2_index = 0
+        for var2_i in range(len(strides2)):
+            assignment2_index += strides2[var2_i] * assignment2[var2_i]
+        # Multiply
+        if not divide:
+            #print data2
+            #print data1
+            #print assignment1, assignment1_index
+            #print assignment2, assignment2_index
+            #print
+            #print 'strides'
+            #print strides1, strides2
+            #print
+            data2[assignment2_index] *= data1[assignment1_index]
+            #data2[assignment2] *= data1[assignment1]
+        else:
+            if data2[assignment2_index] > 0.0:
+                data2[assignment2_index] /= data1[assignment1_index]
+
+        # Tick variable2 assignment
+        assignment2[0] += 1
+        for var2_i in range(len(assignment2) - 1):
+            if assignment2[var2_i] >= card2[var2_i]:
+                assignment2[var2_i] = 0
+                assignment2[var2_i + 1] += 1
+        if assignment2[-1] >= card2[-1]:
+            done = True
 
 
 class DiscreteFactor:
@@ -14,7 +70,6 @@ class DiscreteFactor:
         except AttributeError:
             # add default cardinality of 2
             variables = [(variable_name, 2) for variable_name in variables]
-
         self.variables = variables
         self.variable_set = set(variable[0] for variable in variables)
         self.cardinalities = dict(variables)
@@ -65,44 +120,61 @@ class DiscreteFactor:
         return result_factor
 
     def multiply(self, other_factor, divide=False, update_inplace=True):
-        #print 'mult start', self.data
-        other_variable_order = [other_factor.axis_to_variable[other_axis]
-                                for other_axis in xrange(len(other_factor.data.shape))]
-        variables_in_self_not_in_other = [variable[0] for variable in self.variables
-                                          if variable not in other_factor.variables]
-        other_variable_order += variables_in_self_not_in_other
-        #print 'other_var_ord', other_variable_order
-        #print 'variables_in_self_not_ot', variables_in_self_not_in_other
-        new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
-                          for axis in xrange(len(other_variable_order))]
-
-        new_shape = [card for card in other_factor.data.shape] + [1 for var in variables_in_self_not_in_other]
-        reshaped_other_data = other_factor.data.reshape(new_shape)
-        reordered_other_data = reshaped_other_data.transpose(new_axis_order)
-
-        tile_shape = [self_card if self_card != other_card else 1
-                      for self_card, other_card in zip(self.data.shape, reordered_other_data.shape)]
-
-        tiled_other_data = np.tile(reordered_other_data, tile_shape)
-
-        if not divide:
-            result_data = self.data * tiled_other_data
-            result_norm = self.log_normalizer + other_factor.log_normalizer
-        else:
-            result_data = self.data / tiled_other_data
-            result_data = np.nan_to_num(result_data)
-            #print 'if div', self.log_normalizer, other_factor.log_normalizer
-            result_norm = self.log_normalizer - other_factor.log_normalizer
         if update_inplace:
-            self.data = result_data
-            self.log_normalizer = result_norm
+            dim1 = len(other_factor.variables)
+            dim2 = len(self.variables)
+            strides1 = np.array(other_factor.data.strides, dtype=np.int8) / other_factor.data.itemsize
+            strides2 = np.array(self.data.strides, dtype=np.int8) / self.data.itemsize
+            card2 = np.array([self.cardinalities[self.axis_to_variable[axis]] for axis in xrange(dim2)], dtype=np.int8)
+            assignment1 = np.zeros(dim1, dtype=np.int8)
+            assignment2 = np.zeros(dim2, dtype=np.int8)
+            data1 = other_factor.data.view()
+            data1.shape = (np.prod(data1.shape),)
+            data2 = self.data.view()
+            data2.shape = (np.prod(data2.shape),)
+            variable1_to_2 = np.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]] for ax1 in xrange(dim1)], dtype=np.int8)
+            multiply_factors(data1, data2,
+                             strides1, strides2,
+                             card2,
+                             assignment1, assignment2,
+                             variable1_to_2, divide)
+            self.log_normalizer += other_factor.log_normalizer
         else:
-            result_factor = DiscreteFactor(self.variables, result_data, parameters=self.parameters)
-            result_factor.log_normalizer = result_norm
-            #print 'result norm mult', result_norm, result_factor.data
-            #print 'result norm mult', self.data
-            #result_factor.data = result_data
-            return result_factor
+            other_variable_order = [other_factor.axis_to_variable[other_axis]
+                                    for other_axis in xrange(len(other_factor.data.shape))]
+            variables_in_self_not_in_other = [variable[0] for variable in self.variables
+                                              if variable not in other_factor.variables]
+            other_variable_order += variables_in_self_not_in_other
+            new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
+                              for axis in xrange(len(other_variable_order))]
+
+            new_shape = [card for card in other_factor.data.shape] + [1 for var in variables_in_self_not_in_other]
+            reshaped_other_data = other_factor.data.reshape(new_shape)
+            reordered_other_data = reshaped_other_data.transpose(new_axis_order)
+
+            tile_shape = [self_card if self_card != other_card else 1
+                          for self_card, other_card in zip(self.data.shape, reordered_other_data.shape)]
+
+            tiled_other_data = np.tile(reordered_other_data, tile_shape)
+
+            if not divide:
+                result_data = self.data * tiled_other_data
+                result_norm = self.log_normalizer + other_factor.log_normalizer
+            else:
+                result_data = self.data / tiled_other_data
+                result_data = np.nan_to_num(result_data)
+                #print 'if div', self.log_normalizer, other_factor.log_normalizer
+                result_norm = self.log_normalizer - other_factor.log_normalizer
+            if update_inplace:
+                self.data = result_data
+                self.log_normalizer = result_norm
+            else:
+                result_factor = DiscreteFactor(self.variables, result_data, parameters=self.parameters)
+                result_factor.log_normalizer = result_norm
+                #print 'result norm mult', result_norm, result_factor.data
+                #print 'result norm mult', self.data
+                #result_factor.data = result_data
+                return result_factor
 
     def get_potential(self, variable_list):
         """
