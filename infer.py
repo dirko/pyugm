@@ -222,7 +222,6 @@ class DistributeCollectProtocol(object):
         if self._direction == 'distribute':
             if len(self._to_visit) > 0:
                 next_factor = self._to_visit.pop()
-                output_edge = None
                 for edge in self._edges:
                     if edge[0] == next_factor and edge[1] in self._visited_factors:
                         output_edge = (edge[1], edge[0])
