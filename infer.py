@@ -219,32 +219,31 @@ class DistributeCollectProtocol(object):
         self._direction = 'distribute'
         self.current_iteration_delta = 0.0
         self.total_iterations = 0
-        if self._direction == 'distribute':
-            if len(self._to_visit) > 0:
-                next_factor = self._to_visit.pop()
-                for edge in self._edges:
-                    if edge[0] == next_factor and edge[1] in self._visited_factors:
-                        output_edge = (edge[1], edge[0])
-                        self._visited_factors.add(next_factor)
-                    elif edge[1] == next_factor and edge[0] in self._visited_factors:
-                        output_edge = edge
-                        self._visited_factors.add(next_factor)
-                    elif edge[0] == next_factor and edge[1] not in self._visited_factors:
-                        self._to_visit.add(edge[1])
-                    elif edge[1] == next_factor and edge[0] not in self._visited_factors:
-                        self._to_visit.add(edge[0])
-                self._forward_edges.append(output_edge)
-        print 'forward', self._forward_edges
+        while len(self._to_visit) > 0:
+            next_factor = self._to_visit.pop()
+            for edge in self._edges:
+                if edge[0] == next_factor and edge[1] in self._visited_factors:
+                    next_edge = (edge[1], edge[0])
+                    self._visited_factors.add(next_factor)
+                elif edge[1] == next_factor and edge[0] in self._visited_factors:
+                    next_edge = edge
+                    self._visited_factors.add(next_factor)
+                elif edge[0] == next_factor and edge[1] not in self._visited_factors:
+                    self._to_visit.add(edge[1])
+                elif edge[1] == next_factor and edge[0] not in self._visited_factors:
+                    self._to_visit.add(edge[0])
+            self._forward_edges.append(next_edge)
+
         reversed_edges = [(edge[1], edge[0]) for edge in self._forward_edges[::-1]]
         self._all_edges = self._forward_edges + reversed_edges
         self._all_edges += self._all_edges
+        self._all_edges = self._all_edges[::-1]
 
     def next_edge(self, last_update_change):
         """ Get the next edge to update """
         self.current_iteration_delta += last_update_change
         if len(self._all_edges) >= 1:
             return_edge = self._all_edges.pop()
-            print 'return edge', return_edge
             return return_edge
         else:
             return None

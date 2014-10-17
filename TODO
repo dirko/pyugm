@@ -29,6 +29,24 @@ Flooding protocol is slow - build distribute/collect protocol for trees.
 ## 11 October 2014
 Document as clique templates (from Sutton and McCallum's tutorial)
 
+  def __init__(self, model):
+        self._model = model
+        self._edges = model.edges
+        self._to_visit = set()
+        self._visited_factors = set()
+        for sub_graph in model.disconnected_subgraphs:  # Roots
+            root_factor = list(sub_graph)[0]
+            self._visited_factors.add(root_factor)
+            for edge in self._edges:
+                if edge[0] == root_factor:
+                    self._to_visit.add(edge[1])
+                elif edge[1] == root_factor:
+                    self._to_visit.add(edge[0])
+        self._forward_edges = []
+        self._direction = 'distribute'
+        self.current_iteration_delta = 0.0
+        self.total_iterations = 0
+
     def reset(self):
         self._to_visit = set()
         self._visited_factors = set()
