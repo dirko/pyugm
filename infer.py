@@ -261,7 +261,7 @@ class DistributeCollectProtocol(object):
 
 class LoopyBeliefUpdateInference:
     def __init__(self, model):
-        self.separator_potentials = dict()  # edge to pairs of separator potentials
+        self.separator_potential = dict()  # edge to pairs of separator potentials
         self.model = model
 
     def set_up_belief_update(self):
@@ -271,27 +271,27 @@ class LoopyBeliefUpdateInference:
             sepset = factor1.variable_set.intersection(factor2.variable_set)
             separator_variables = [(variable, factor1.cardinalities[variable]) for variable in list(sepset)]
             # NOTE: will want to set this up more generically for other kinds of factors
-            separator_factors = (DiscreteFactor(separator_variables), DiscreteFactor(separator_variables))
-            self.separator_potentials[edge] = separator_factors
-            self.separator_potentials[(edge[1], edge[0])] = separator_factors
+            separator_factor = DiscreteFactor(separator_variables)
+            self.separator_potential[edge] = separator_factor
+            self.separator_potential[(edge[1], edge[0])] = separator_factor
 
     def update_belief(self, edge):
-        old_separators = self.separator_potentials[edge]
-        variables_to_keep = old_separators[0].variable_set
+        old_separator = self.separator_potential[edge]
+        variables_to_keep = old_separator.variable_set
 
         # Could probably be a bit faster
         new_separator = edge[0].marginalize(variables_to_keep)
         new_separator_divided = edge[0].marginalize(variables_to_keep)
-        new_separator_divided.multiply(old_separators[0], divide=True)
+        new_separator_divided.multiply(old_separator, divide=True)
         edge[1].multiply(new_separator_divided)
 
-        new_separators = (new_separator, old_separators[0])
+        #new_separators = (new_separator, old_separator)
         reverse_edge = (edge[1], edge[0])
-        self.separator_potentials[edge] = new_separators
-        self.separator_potentials[reverse_edge] = new_separators
+        self.separator_potential[edge] = new_separator
+        self.separator_potential[reverse_edge] = new_separator
 
         num_cells = np.prod(new_separator.data.shape) * 1.0
-        average_change_per_cell = abs(new_separator.data - new_separator._rotate_other(old_separators[0])).sum() / num_cells
+        average_change_per_cell = abs(new_separator.data - new_separator._rotate_other(old_separator)).sum() / num_cells
 
         return average_change_per_cell
 

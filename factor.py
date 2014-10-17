@@ -2,7 +2,6 @@ import numpy as np
 from numba import jit, void, f8, i1, b1, njit
 
 
-#@njit
 @njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1))
 def multiply_factors(data1, data2,
                      strides1, strides2,
@@ -169,14 +168,13 @@ class DiscreteFactor:
             return_factor = DiscreteFactor(self.variables, 'placeholder', parameters=self.parameters)
         return_data = self.data * multiplier * 1.0
 
-        total_log_norm = self.log_normalizer #+ np.log(result_norm)
+        total_log_norm = self.log_normalizer
         if normalize:
             result_norm = return_data.sum()
             return_data /= result_norm
             total_log_norm = np.log(1.0)
         return_factor.data = return_data
         return_factor.log_normalizer = total_log_norm
-        #print 'set_ev', self.variables, return_data
         return return_factor
 
     def _rotate_other(self, other_factor):
@@ -184,10 +182,6 @@ class DiscreteFactor:
                                 for other_axis in xrange(len(other_factor.data.shape))]
         new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
                           for axis in xrange(len(other_variable_order))]
-        #print self.variables
-        #print other_factor.variables
-        #print other_variable_order
-        #print new_axis_order
         return other_factor.data.transpose(new_axis_order)
 
     def get_data(self):

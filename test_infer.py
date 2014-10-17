@@ -160,20 +160,15 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         inference.set_up_belief_update()
 
         s = DiscreteFactor([(2, 2)])
-        print inference.separator_potentials
+        print inference.separator_potential
         forward_edge = list(model.edges)[0]
         forward_and_backward_edge = [forward_edge, (forward_edge[1], forward_edge[0])]
         for edge in forward_and_backward_edge:
-            separator_factor1 = inference.separator_potentials[edge][0]
-            separator_factor2 = inference.separator_potentials[edge][1]
+            separator_factor = inference.separator_potential[edge]
 
-            self.assertSetEqual(separator_factor1.variable_set, s.variable_set)
-            self.assertDictEqual(separator_factor1.cardinalities, s.cardinalities)
-            assert_array_almost_equal(separator_factor1.data, s.data)
-
-            self.assertSetEqual(separator_factor2.variable_set, s.variable_set)
-            self.assertDictEqual(separator_factor2.cardinalities, s.cardinalities)
-            assert_array_almost_equal(separator_factor2.data, s.data)
+            self.assertSetEqual(separator_factor.variable_set, s.variable_set)
+            self.assertDictEqual(separator_factor.cardinalities, s.cardinalities)
+            assert_array_almost_equal(separator_factor.data, s.data)
 
     def test_update_beliefs_small(self):
         a = DiscreteFactor([0, 1])
