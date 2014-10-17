@@ -198,18 +198,11 @@ class DistributeCollectProtocol(object):
         self._edges = model.edges
         self._to_visit = set()
         self._visited_factors = set()
-        for sub_graph in model.disconnected_subgraphs:  # Roots
-            root_factor = list(sub_graph)[0]
-            self._visited_factors.add(root_factor)
-            for edge in self._edges:
-                if edge[0] == root_factor:
-                    self._to_visit.add(edge[1])
-                elif edge[1] == root_factor:
-                    self._to_visit.add(edge[0])
         self._forward_edges = []
         self._direction = 'distribute'
         self.current_iteration_delta = 0.0
         self.total_iterations = 0
+        self.reset()
 
     def reset(self):
         self._to_visit = set()
@@ -226,37 +219,36 @@ class DistributeCollectProtocol(object):
         self._direction = 'distribute'
         self.current_iteration_delta = 0.0
         self.total_iterations = 0
-
-    def next_edge(self, last_update_change):
-        """ Get the next edge to update """
-        self.current_iteration_delta += last_update_change
         if self._direction == 'distribute':
             if len(self._to_visit) > 0:
                 next_factor = self._to_visit.pop()
+                output_edge = None
                 for edge in self._edges:
                     if edge[0] == next_factor and edge[1] in self._visited_factors:
-                        next_edge = (edge[1], edge[0])
+                        output_edge = (edge[1], edge[0])
                         self._visited_factors.add(next_factor)
                     elif edge[1] == next_factor and edge[0] in self._visited_factors:
-                        next_edge = edge
+                        output_edge = edge
                         self._visited_factors.add(next_factor)
                     elif edge[0] == next_factor and edge[1] not in self._visited_factors:
                         self._to_visit.add(edge[1])
                     elif edge[1] == next_factor and edge[0] not in self._visited_factors:
                         self._to_visit.add(edge[0])
-                self._forward_edges.append(next_edge)
-            else:
-                self._direction = 'collect'
-        if self._direction == 'collect':
-            next_edge = None
-            if len(self._forward_edges) > 0:
-                next_edge_reversed = self._forward_edges.pop()
-                next_edge = (next_edge_reversed[1], next_edge_reversed[0])
-            elif self.total_iterations == 0:
-                self.reset()
-                self.total_iterations = 1
-                next_edge = self.next_edge(last_update_change)
-        return next_edge
+                self._forward_edges.append(output_edge)
+        print 'forward', self._forward_edges
+        reversed_edges = [(edge[1], edge[0]) for edge in self._forward_edges[::-1]]
+        self._all_edges = self._forward_edges + reversed_edges
+        self._all_edges += self._all_edges
+
+    def next_edge(self, last_update_change):
+        """ Get the next edge to update """
+        self.current_iteration_delta += last_update_change
+        if len(self._all_edges) >= 1:
+            return_edge = self._all_edges.pop()
+            print 'return edge', return_edge
+            return return_edge
+        else:
+            return None
 
 
 class LoopyBeliefUpdateInference:

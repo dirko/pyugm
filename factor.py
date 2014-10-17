@@ -1,5 +1,5 @@
 import numpy as np
-from numba import jit, void, f8, i1, b1, njit
+from numba import void, f8, i1, b1, njit
 
 
 @njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1))
@@ -120,7 +120,8 @@ class DiscreteFactor:
         assignment2 = np.zeros(dim2, dtype=np.int8)
         data1_flatshape = (np.prod(other_factor.data.shape),)
         data2_flatshape = (np.prod(self.data.shape),)
-        variable1_to_2 = np.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]] for ax1 in xrange(dim1)], dtype=np.int8)
+        variable1_to_2 = np.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]] for ax1 in xrange(dim1)],
+                                  dtype=np.int8)
         data1 = other_factor.data.view()
         data2 = self.data.view()
         data1.shape = data1_flatshape
