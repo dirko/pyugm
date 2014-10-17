@@ -169,22 +169,22 @@ class TestFactor(unittest.TestCase):
         f.data[1, 1] = 6 * 3
         f.log_normalizer = 0.0
 
-        g = a.multiply(e, update_inplace=False)
+        a.multiply(e)
 
         print 'a', a.data
         print a.log_normalizer
         print 'e', e.data
         print e.log_normalizer
         print
-        print g.data
-        print g.log_normalizer
+        print a.data
+        print a.log_normalizer
         print f.data
         print f.log_normalizer
-        print g.data.shape
+        print a.data.shape
         print f.data.shape
-        self.assertEqual(g.variables, f.variables)
-        self.assertEqual(g.axis_to_variable, f.axis_to_variable)
-        assert_array_almost_equal(g.get_data(), f.get_data())
+        self.assertEqual(a.variables, f.variables)
+        self.assertEqual(a.axis_to_variable, f.axis_to_variable)
+        assert_array_almost_equal(a.get_data(), f.get_data())
 
     def test_multiply_larger(self):
         a = DiscreteFactor([(0, 2), (3, 2), (12, 3)])
@@ -225,15 +225,15 @@ class TestFactor(unittest.TestCase):
         c.data[1, 1, 1] = 9 * 1
         c.data[1, 1, 2] = 10 * 7
 
-        d = a.multiply(b, update_inplace=False)
+        a.multiply(b)
 
-        print d.data
+        print a.data
         print c.data
-        print d.data.shape
+        print a.data.shape
         print c.data.shape
-        self.assertEqual(d.variables, c.variables)
-        self.assertEqual(d.axis_to_variable, c.axis_to_variable)
-        assert_array_almost_equal(d.get_data(), c.get_data())
+        self.assertEqual(a.variables, c.variables)
+        self.assertEqual(a.axis_to_variable, c.axis_to_variable)
+        assert_array_almost_equal(a.get_data(), c.get_data())
 
     def test_multiply_larger_correct_order(self):
         a = DiscreteFactor([(0, 2), (3, 2), (12, 3)])
@@ -274,16 +274,15 @@ class TestFactor(unittest.TestCase):
         c.data[1, 1, 1] = 9 * 1
         c.data[1, 1, 2] = 10 * 7
 
-        d = a.multiply(b, update_inplace=False)
+        a.multiply(b)
 
-        print d.data
+        print a.data
         print c.data
-        print d.data.shape
+        print a.data.shape
         print c.data.shape
-        self.assertEqual(d.variables, c.variables)
-        self.assertEqual(d.axis_to_variable, c.axis_to_variable)
-        assert_array_almost_equal(d.get_data(), c.get_data())
-        pass
+        self.assertEqual(a.variables, c.variables)
+        self.assertEqual(a.axis_to_variable, c.axis_to_variable)
+        assert_array_almost_equal(a.get_data(), c.get_data())
 
     def test_divide_small(self):
         a = DiscreteFactor([(0, 2), (1, 2)], data=np.array([[1.0, 2], [5, 6]]))
@@ -307,17 +306,17 @@ class TestFactor(unittest.TestCase):
         #c.data[1, 0] = 5.0 / 2.0
         #c.data[1, 1] = 6.0 / 3.0
 
-        d = a.multiply(b, divide=True, update_inplace=False)
+        a.multiply(b, divide=True)
 
-        print d.data
-        print d.log_normalizer
+        print a.data
+        print a.log_normalizer
         print c.data
         print c.log_normalizer
-        print d.data.shape
+        print a.data.shape
         print c.data.shape
-        self.assertEqual(d.variables, c.variables)
-        self.assertEqual(d.axis_to_variable, c.axis_to_variable)
-        assert_array_almost_equal(d.get_data(), c.get_data())
+        self.assertEqual(a.variables, c.variables)
+        self.assertEqual(a.axis_to_variable, c.axis_to_variable)
+        assert_array_almost_equal(a.get_data(), c.get_data())
 
     def test_get_potential_single(self):
         a = DiscreteFactor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))

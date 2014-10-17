@@ -156,16 +156,23 @@ class FloodingProtocol:
     Defines an update ordering
     """
     def __init__(self, model, max_iterations=np.inf, converge_delta=10**-10):
+        self._model = model
         self._edges = list(model.edges)
         self._current_edge_index = 0
-        self._total_iterations = 0
+        self.total_iterations = 0
         self._max_iterations = max_iterations
-        self._current_iteration_delta = 0
+        self.current_iteration_delta = 0
         self._converge_delta = converge_delta
+
+    def reset(self):
+        self._edges = list(self._model.edges)
+        self._current_edge_index = 0
+        self.total_iterations = 0
+        self.current_iteration_delta = 0
 
     def next_edge(self, last_update_change):
         """ Get the next edge to update """
-        self._current_iteration_delta += last_update_change
+        self.current_iteration_delta += last_update_change
         if self._edges:
             next_edge = self._edges[self._current_edge_index / 2]
         else:
@@ -177,10 +184,78 @@ class FloodingProtocol:
         self._current_edge_index += 1
         if self._current_edge_index / 2 >= len(self._edges):
             self._current_edge_index = 0
-            self._total_iterations += 1
-            if self._total_iterations > self._max_iterations or self._current_iteration_delta < self._converge_delta:
+            self.total_iterations += 1
+            if self.total_iterations > self._max_iterations or self.current_iteration_delta < self._converge_delta:
                 next_edge = None
-            self._current_iteration_delta = 0.0
+            self.current_iteration_delta = 0.0
+        return next_edge
+
+
+class DistributeCollectProtocol(object):
+    """ Works only for trees """
+    def __init__(self, model):
+        self._model = model
+        self._edges = model.edges
+        self._to_visit = set()
+        self._visited_factors = set()
+        for sub_graph in model.disconnected_subgraphs:  # Roots
+            root_factor = list(sub_graph)[0]
+            self._visited_factors.add(root_factor)
+            for edge in self._edges:
+                if edge[0] == root_factor:
+                    self._to_visit.add(edge[1])
+                elif edge[1] == root_factor:
+                    self._to_visit.add(edge[0])
+        self._forward_edges = []
+        self._direction = 'distribute'
+        self.current_iteration_delta = 0.0
+        self.total_iterations = 0
+
+    def reset(self):
+        self._to_visit = set()
+        self._visited_factors = set()
+        for sub_graph in self._model.disconnected_subgraphs:  # Roots
+            root_factor = list(sub_graph)[0]
+            self._visited_factors.add(root_factor)
+            for edge in self._edges:
+                if edge[0] == root_factor:
+                    self._to_visit.add(edge[1])
+                elif edge[1] == root_factor:
+                    self._to_visit.add(edge[0])
+        self._forward_edges = []
+        self._direction = 'distribute'
+        self.current_iteration_delta = 0.0
+        self.total_iterations = 0
+
+    def next_edge(self, last_update_change):
+        """ Get the next edge to update """
+        self.current_iteration_delta += last_update_change
+        if self._direction == 'distribute':
+            if len(self._to_visit) > 0:
+                next_factor = self._to_visit.pop()
+                for edge in self._edges:
+                    if edge[0] == next_factor and edge[1] in self._visited_factors:
+                        next_edge = (edge[1], edge[0])
+                        self._visited_factors.add(next_factor)
+                    elif edge[1] == next_factor and edge[0] in self._visited_factors:
+                        next_edge = edge
+                        self._visited_factors.add(next_factor)
+                    elif edge[0] == next_factor and edge[1] not in self._visited_factors:
+                        self._to_visit.add(edge[1])
+                    elif edge[1] == next_factor and edge[0] not in self._visited_factors:
+                        self._to_visit.add(edge[0])
+                self._forward_edges.append(next_edge)
+            else:
+                self._direction = 'collect'
+        if self._direction == 'collect':
+            next_edge = None
+            if len(self._forward_edges) > 0:
+                next_edge_reversed = self._forward_edges.pop()
+                next_edge = (next_edge_reversed[1], next_edge_reversed[0])
+            elif self.total_iterations == 0:
+                self.reset()
+                self.total_iterations = 1
+                next_edge = self.next_edge(last_update_change)
         return next_edge
 
 
@@ -201,22 +276,13 @@ class LoopyBeliefUpdateInference:
             self.separator_potentials[(edge[1], edge[0])] = separator_factors
 
     def update_belief(self, edge):
-        #print 'starting update', edge
-        #print edge[0].data
-        #print edge[1].data
         old_separators = self.separator_potentials[edge]
         variables_to_keep = old_separators[0].variable_set
 
-        # Phi** = Sum Psi
-        #print 'before marg', edge[0].data, variables_to_keep
+        # Could probably be a bit faster
         new_separator = edge[0].marginalize(variables_to_keep)
-        #print 'before div', new_separator.data
-        # A = Phi* / Phi
-        new_separator_divided = new_separator.multiply(old_separators[0], divide=True, update_inplace=False)
-        #print 'after div', new_separator_divided.log_normalizer
-        # Psi** = Psi* x A
-        #print edge[0], '->', edge[1]
-        #print new_separator.data.shape, '/', old_separators[0].data.shape, '=', new_separator_divided.data.shape
+        new_separator_divided = edge[0].marginalize(variables_to_keep)
+        new_separator_divided.multiply(old_separators[0], divide=True)
         edge[1].multiply(new_separator_divided)
 
         new_separators = (new_separator, old_separators[0])
@@ -225,13 +291,7 @@ class LoopyBeliefUpdateInference:
         self.separator_potentials[reverse_edge] = new_separators
 
         num_cells = np.prod(new_separator.data.shape) * 1.0
-        #print new_separator.data.shape
-        #print old_separators[0].data.shape
-        #print num_cells
-        #average_change_per_cell = abs(new_separator.data - old_separators[0].data).sum() / num_cells
         average_change_per_cell = abs(new_separator.data - new_separator._rotate_other(old_separators[0])).sum() / num_cells
-        #print average_change_per_cell
-        #print new_separator.data
 
         return average_change_per_cell
 
@@ -243,7 +303,6 @@ class LoopyBeliefUpdateInference:
         edge = update_order.next_edge(average_change_per_cell)
         while edge:
             average_change_per_cell = self.update_belief(edge)
-            #print 'Edge: ', edge, average_change_per_cell
             edge = update_order.next_edge(average_change_per_cell)
 
         # Find normaliser
@@ -256,7 +315,7 @@ class LoopyBeliefUpdateInference:
             for factor in list(island):
                 factor.log_normalizer += (total_z - island_z)
 
-        return update_order._current_iteration_delta, update_order._total_iterations
+        return update_order.current_iteration_delta, update_order.total_iterations
 
     def exhaustive_enumeration(self):
         """ Compute the complete probability table by enumerating all variable instantiations """

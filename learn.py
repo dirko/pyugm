@@ -1,5 +1,5 @@
 from factor import DiscreteFactor
-from infer import Model, LoopyBeliefUpdateInference
+from infer import Model, LoopyBeliefUpdateInference, FloodingProtocol, DistributeCollectProtocol
 import numpy as np
 import scipy.optimize
 
@@ -8,7 +8,7 @@ class LearnMRFParameters:
     """
     Find a Gaussian approximation to the posterior given a model and prior.
     """
-    def __init__(self, model, prior=1.0, initial_noise=0.1):
+    def __init__(self, model, prior=1.0, initial_noise=10.0**-12, update_order=None):
         """
         The learner object.
 
@@ -22,20 +22,25 @@ class LearnMRFParameters:
             self.prior_precision = np.eye(self.dimension) * prior
             self.prior_normaliser = (-0.5 * self.dimension * np.log(2.0 * np.pi)
                                      + 0.5 * np.log(np.linalg.det((self.prior_precision))))
+        self.update_order = update_order
+        if not self.update_order:
+            self.update_order = DistributeCollectProtocol(self.model)
         self.iterations = []
 
     def evaluate_log_likelihood(self, evidence):
+        self.update_order.reset()
         self.model.set_parameters(self.parameters)
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
-        change = inference.update_beliefs(number_of_updates=35)
+        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
         log_Z_total = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
 
+        self.update_order.reset()
         self.model.set_parameters(self.parameters)
         self.model.set_evidence(evidence=evidence)
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
-        change = inference.update_beliefs(number_of_updates=35)
+        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
         log_Z_observed = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
 
         log_likelihood = log_Z_observed - log_Z_total
@@ -44,22 +49,24 @@ class LearnMRFParameters:
             log_likelihood += -0.5 * np.dot(np.dot((self.parameters - self.prior_location).T,
                                                    self.prior_precision), (self.parameters - self.prior_location))
             log_likelihood += self.prior_normaliser
-        print 'Z: ', log_likelihood, '   ', log_Z_observed, log_Z_total
+        #print 'Z: ', log_likelihood, '   ', log_Z_observed, log_Z_total
         return log_likelihood
 
     def evaluate_log_likelihood_and_derivative(self, evidence):
+        self.update_order.reset()
         self.model.set_parameters(self.parameters)
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
-        change = inference.update_beliefs(number_of_updates=35)
+        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
         log_Z_total = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
         model_expected_counts = self.accumulate_expected_counts()
 
+        self.update_order.reset()
         self.model.set_parameters(self.parameters)
         self.model.set_evidence(evidence=evidence)
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
-        change = inference.update_beliefs(number_of_updates=35)
+        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
         log_Z_observed = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
         empirical_expected_counts = self.accumulate_expected_counts()
 
@@ -99,8 +106,10 @@ class LearnMRFParameters:
 
         def f(x):
             self.parameters = x
-            print np.exp(x)
-            return -self.evaluate_log_likelihood(self.evidence)
+            #print np.exp(x)
+            ll = self.evaluate_log_likelihood(self.evidence)
+            self.iterations.append([ll, x])
+            return -ll
 
         self.ans = scipy.optimize.fmin_l_bfgs_b(f, x0, approx_grad=True, pgtol=10.0**-10)
         return self

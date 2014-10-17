@@ -3,7 +3,7 @@ from numpy.testing import assert_array_almost_equal
 import numpy as np
 
 from factor import DiscreteFactor
-from infer import Model, LoopyBeliefUpdateInference
+from infer import Model, LoopyBeliefUpdateInference, DistributeCollectProtocol
 
 
 def print_edge_set(edges):
@@ -236,7 +236,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         print 'Exhaust', np.sum(exhaustive_answer.data)
 
         inference.set_up_belief_update()
-        change = inference.update_beliefs(number_of_updates=35)
+        update_order = DistributeCollectProtocol(model)
+        change = inference.update_beliefs(update_order=update_order, number_of_updates=35)
         print change
 
         for factor in model.factors:
@@ -268,11 +269,12 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
 
         print 'bp'
         inference.set_up_belief_update()
-        change = inference.update_beliefs(number_of_updates=35)
+        update_order = DistributeCollectProtocol(model)
+        change = inference.update_beliefs(update_order=update_order, number_of_updates=35)
         print change
 
         for factor in model.factors:
-            print factor, np.sum(factor.data)
+            print factor, np.sum(factor.data) + np.exp(factor.log_normalizer)
 
         self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(a.get_data()))
         self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(d.get_data()))

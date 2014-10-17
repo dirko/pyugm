@@ -22,3 +22,10 @@ Wondering about architecture - should only inplace updates be allowed?
 ## 17 September 2014
 Example HMM.
 
+## 27 September 2014
+Optimise for speed. - Numba looks like it is working. Add Numba update function.
+Flooding protocol is slow - build distribute/collect protocol for trees.
+
+## 11 October 2014
+Document as clique templates (from Sutton and McCallum's tutorial)
+

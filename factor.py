@@ -33,16 +33,7 @@ def multiply_factors(data1, data2,
             assignment2_index += strides2[var2_i] * assignment2[var2_i]
         # Multiply
         if not divide:
-            #print data2
-            #print data1
-            #print assignment1, assignment1_index
-            #print assignment2, assignment2_index
-            #print
-            #print 'strides'
-            #print strides1, strides2
-            #print
             data2[assignment2_index] *= data1[assignment1_index]
-            #data2[assignment2] *= data1[assignment1]
         else:
             if data2[assignment2_index] > 0.0:
                 data2[assignment2_index] /= data1[assignment1_index]
@@ -89,6 +80,9 @@ class DiscreteFactor:
             self.data /= np.exp(self.log_normalizer)
             self.log_normalizer = np.log(1.0)
 
+        # Caching
+        self.cached_multiply = {}
+
     def marginalize(self, variable_names, normalize=False):
         # variable_names: variables to keep
         #print 'marg', self.data
@@ -99,13 +93,11 @@ class DiscreteFactor:
         result_shape = [cardinality for name, cardinality in result_variables]
 
         if axes:
-            result_data = np.apply_over_axes(np.sum, self.data, axes).reshape(result_shape)
-            #print 'first'
-            #print self, variable_names, normalize
-            #print self.data
+            #result_data = np.apply_over_axes(np.sum, self.data, axes).reshape(result_shape)
+            #print axes, result_shape
+            result_data = np.sum(self.data, axis=tuple(axes)).reshape(result_shape)
         else:  # Edge case where the original array is returned instead of a copy
             result_data = np.copy(self.data)
-            #print 'second', variable_names, self
 
         result_log_norm = np.log(result_data.sum())
         #print 'susm', result_log_norm, result_data, self.data
@@ -119,62 +111,30 @@ class DiscreteFactor:
 
         return result_factor
 
-    def multiply(self, other_factor, divide=False, update_inplace=True):
-        if update_inplace:
-            dim1 = len(other_factor.variables)
-            dim2 = len(self.variables)
-            strides1 = np.array(other_factor.data.strides, dtype=np.int8) / other_factor.data.itemsize
-            strides2 = np.array(self.data.strides, dtype=np.int8) / self.data.itemsize
-            card2 = np.array([self.cardinalities[self.axis_to_variable[axis]] for axis in xrange(dim2)], dtype=np.int8)
-            assignment1 = np.zeros(dim1, dtype=np.int8)
-            assignment2 = np.zeros(dim2, dtype=np.int8)
-            data1 = other_factor.data.view()
-            data1.shape = (np.prod(data1.shape),)
-            data2 = self.data.view()
-            data2.shape = (np.prod(data2.shape),)
-            variable1_to_2 = np.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]] for ax1 in xrange(dim1)], dtype=np.int8)
-            multiply_factors(data1, data2,
-                             strides1, strides2,
-                             card2,
-                             assignment1, assignment2,
-                             variable1_to_2, divide)
-            self.log_normalizer += other_factor.log_normalizer
+    def multiply(self, other_factor, divide=False):
+        dim1 = len(other_factor.variables)
+        dim2 = len(self.variables)
+        strides1 = np.array(other_factor.data.strides, dtype=np.int8) / other_factor.data.itemsize
+        strides2 = np.array(self.data.strides, dtype=np.int8) / self.data.itemsize
+        card2 = np.array([self.cardinalities[self.axis_to_variable[axis]] for axis in xrange(dim2)], dtype=np.int8)
+        assignment1 = np.zeros(dim1, dtype=np.int8)
+        assignment2 = np.zeros(dim2, dtype=np.int8)
+        data1_flatshape = (np.prod(other_factor.data.shape),)
+        data2_flatshape = (np.prod(self.data.shape),)
+        variable1_to_2 = np.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]] for ax1 in xrange(dim1)], dtype=np.int8)
+        data1 = other_factor.data.view()
+        data2 = self.data.view()
+        data1.shape = data1_flatshape
+        data2.shape = data2_flatshape
+        multiply_factors(data1, data2,
+                         strides1, strides2,
+                         card2,
+                         assignment1, assignment2,
+                         variable1_to_2, divide)
+        if divide:
+            self.log_normalizer -= other_factor.log_normalizer
         else:
-            other_variable_order = [other_factor.axis_to_variable[other_axis]
-                                    for other_axis in xrange(len(other_factor.data.shape))]
-            variables_in_self_not_in_other = [variable[0] for variable in self.variables
-                                              if variable not in other_factor.variables]
-            other_variable_order += variables_in_self_not_in_other
-            new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
-                              for axis in xrange(len(other_variable_order))]
-
-            new_shape = [card for card in other_factor.data.shape] + [1 for var in variables_in_self_not_in_other]
-            reshaped_other_data = other_factor.data.reshape(new_shape)
-            reordered_other_data = reshaped_other_data.transpose(new_axis_order)
-
-            tile_shape = [self_card if self_card != other_card else 1
-                          for self_card, other_card in zip(self.data.shape, reordered_other_data.shape)]
-
-            tiled_other_data = np.tile(reordered_other_data, tile_shape)
-
-            if not divide:
-                result_data = self.data * tiled_other_data
-                result_norm = self.log_normalizer + other_factor.log_normalizer
-            else:
-                result_data = self.data / tiled_other_data
-                result_data = np.nan_to_num(result_data)
-                #print 'if div', self.log_normalizer, other_factor.log_normalizer
-                result_norm = self.log_normalizer - other_factor.log_normalizer
-            if update_inplace:
-                self.data = result_data
-                self.log_normalizer = result_norm
-            else:
-                result_factor = DiscreteFactor(self.variables, result_data, parameters=self.parameters)
-                result_factor.log_normalizer = result_norm
-                #print 'result norm mult', result_norm, result_factor.data
-                #print 'result norm mult', self.data
-                #result_factor.data = result_data
-                return result_factor
+            self.log_normalizer += other_factor.log_normalizer
 
     def get_potential(self, variable_list):
         """
@@ -186,8 +146,6 @@ class DiscreteFactor:
         for var, assignment in variable_list:
             if var in self.cardinalities:
                 array_position[self.variable_to_axis[var]] = assignment
-        #print 'logn', self.log_normalizer
-        #print 'da, ln', self.data[tuple(array_position)], np.exp(self.log_normalizer)
         return self.data[tuple(array_position)] * np.exp(self.log_normalizer)
 
     def set_evidence(self, evidence, normalize=False, inplace=False):
