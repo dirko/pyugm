@@ -2,7 +2,7 @@
 Module containing the factor classes.
 """
 
-import numpy as np
+import numpy
 from numba import void, f8, i1, b1, njit
 
 
@@ -98,13 +98,13 @@ class DiscreteFactor:
         if data is not None:
             self._data = data
         else:
-            self._data = np.ones(tuple(variable[1] for variable in variables))
+            self._data = numpy.ones(tuple(variable[1] for variable in variables))
 
-        self.log_normalizer = np.log(1.0)
+        self.log_normalizer = numpy.log(1.0)
         if normalize:
-            self.log_normalizer = np.log(self._data.sum())
-            self._data /= np.exp(self.log_normalizer)
-            self.log_normalizer = np.log(1.0)
+            self.log_normalizer = numpy.log(self._data.sum())
+            self._data /= numpy.exp(self.log_normalizer)
+            self.log_normalizer = numpy.log(1.0)
 
     def marginalize(self, variables_to_keep):
         """
@@ -119,12 +119,12 @@ class DiscreteFactor:
         result_shape = [cardinality for name, cardinality in result_variables]
 
         if axes:
-            result_data = np.sum(self._data, axis=tuple(axes)).reshape(result_shape)
+            result_data = numpy.sum(self._data, axis=tuple(axes)).reshape(result_shape)
         else:  # Edge case where the original array is returned instead of a copy
-            result_data = np.copy(self._data)
+            result_data = numpy.copy(self._data)
 
-        result_log_norm = np.log(result_data.sum())
-        result_data = result_data / np.exp(result_log_norm)
+        result_log_norm = numpy.log(result_data.sum())
+        result_data = result_data / numpy.exp(result_log_norm)
         total_log_norm = self.log_normalizer + result_log_norm
         result_factor = DiscreteFactor(result_variables, result_data)
         result_factor.log_normalizer = total_log_norm
@@ -139,15 +139,16 @@ class DiscreteFactor:
         """
         dim1 = len(other_factor.variables)
         dim2 = len(self.variables)
-        strides1 = np.array(other_factor._data.strides, dtype=np.int8) / other_factor._data.itemsize
-        strides2 = np.array(self._data.strides, dtype=np.int8) / self._data.itemsize
-        card2 = np.array([self.cardinalities[self.axis_to_variable[axis]] for axis in xrange(dim2)], dtype=np.int8)
-        assignment1 = np.zeros(dim1, dtype=np.int8)
-        assignment2 = np.zeros(dim2, dtype=np.int8)
-        data1_flatshape = (np.prod(other_factor._data.shape),)
-        data2_flatshape = (np.prod(self._data.shape),)
-        variable1_to_2 = np.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]] for ax1 in xrange(dim1)],
-                                  dtype=np.int8)
+        strides1 = numpy.array(other_factor._data.strides, dtype=numpy.int8) / other_factor._data.itemsize
+        strides2 = numpy.array(self._data.strides, dtype=numpy.int8) / self._data.itemsize
+        card2 = numpy.array([self.cardinalities[self.axis_to_variable[axis]] for axis in xrange(dim2)],
+                            dtype=numpy.int8)
+        assignment1 = numpy.zeros(dim1, dtype=numpy.int8)
+        assignment2 = numpy.zeros(dim2, dtype=numpy.int8)
+        data1_flatshape = (numpy.prod(other_factor._data.shape),)
+        data2_flatshape = (numpy.prod(self._data.shape),)
+        variable1_to_2 = numpy.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]]
+                                      for ax1 in xrange(dim1)], dtype=numpy.int8)
         data1 = other_factor._data.view()
         data2 = self._data.view()
         data1.shape = data1_flatshape
@@ -172,7 +173,7 @@ class DiscreteFactor:
         for var, assignment in variable_list:
             if var in self.cardinalities:
                 array_position[self.variable_to_axis[var]] = assignment
-        return self._data[tuple(array_position)] * np.exp(self.log_normalizer)
+        return self._data[tuple(array_position)] * numpy.exp(self.log_normalizer)
 
     def set_evidence(self, evidence):
         """
@@ -186,7 +187,7 @@ class DiscreteFactor:
             if var in self.cardinalities:
                 array_position[self.variable_to_axis[var]] = assignment
 
-        multiplier = np.zeros_like(self._data)
+        multiplier = numpy.zeros_like(self._data)
         multiplier[tuple(array_position)] = 1
         self._data = self._data * multiplier * 1.0
 
@@ -208,7 +209,7 @@ class DiscreteFactor:
         The normalized factor potentials.
         :returns: Potential table.
         """
-        return self._data * np.exp(self.log_normalizer)
+        return self._data * numpy.exp(self.log_normalizer)
 
     def __str__(self):
         """

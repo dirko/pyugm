@@ -1,6 +1,7 @@
 import unittest
 from factor import DiscreteFactor
-from infer import Model, LoopyBeliefUpdateInference, DistributeCollectProtocol, FloodingProtocol
+from infer import LoopyBeliefUpdateInference, DistributeCollectProtocol, FloodingProtocol
+from model import Model
 import numpy as np
 from learn import LearnMRFParameters
 from numpy.testing import assert_array_almost_equal
@@ -26,7 +27,6 @@ class TestLearnMRFParameters(unittest.TestCase):
 
         model = Model([a, b])
         evidence = {1: 0, 3: 1}
-        model.build_graph()
 
         inference = LoopyBeliefUpdateInference(model)
         c = inference.exhaustive_enumeration()
@@ -53,7 +53,6 @@ class TestLearnMRFParameters(unittest.TestCase):
             parameters[model.parameters_to_index[param_name]] = np.log(param)
         evidence = {'1': 0, '3': 1}
         prior_sigma2 = 2.3
-        model.build_graph()
 
         learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
         learner.parameters = parameters
@@ -92,7 +91,6 @@ class TestLearnMRFParameters(unittest.TestCase):
 
             evidence = {'1': 0, '3': 1}
             prior_sigma2 = 2.3
-            model.build_graph()
 
             learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
             learner.parameters = parameters
@@ -124,7 +122,6 @@ class TestLearnMRFParameters(unittest.TestCase):
         model = Model(obs)
         evidence = dict((i, 0 if i < tc1 else 1) for i in xrange(tc1 + tc2))
         print 'evidence', evidence
-        model.build_graph()
         print sorted(model.edges, key=lambda x: str(x))
 
         learner = LearnMRFParameters(model, prior=1.0)
@@ -159,7 +156,6 @@ class TestLearnMRFParameters(unittest.TestCase):
         model = Model(obs)
         evidence = dict((i, 0 if i < tc1 else 1) for i in xrange(tc1 + tc2))
         print 'evidence', evidence
-        model.build_graph()
         print sorted(model.edges, key=lambda x: str(x))
 
         learner = LearnMRFParameters(model, prior=1.0)
@@ -206,7 +202,6 @@ class TestLearnMRFParameters(unittest.TestCase):
                 hidden_factors.append(hid)
 
         model = Model(factors)
-        model.build_graph()
         update_order = DistributeCollectProtocol(model)
         learn = LearnMRFParameters(model, update_order=update_order)
         learn.fit(evidence)

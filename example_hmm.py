@@ -1,5 +1,6 @@
 from factor import DiscreteFactor
-from infer import Model, LoopyBeliefUpdateInference
+from infer import LoopyBeliefUpdateInference
+from model import Model
 from learn import LearnMRFParameters
 import numpy as np
 
@@ -30,7 +31,6 @@ def example_fully_specified_run():
             factors.append(b)
 
     model = Model(factors)
-    model.build_graph()
 
     for factor in model.factors:
         print factor, factor.data
@@ -67,7 +67,6 @@ def example_learning_run():
                                           parameters=np.array([['e', 'f'], ['g', 'h']])))
             evidence[e + 100 * s + 10000] = elem
     model = Model(factors)
-    model.build_graph()
     learner = LearnMRFParameters(model, prior=1.0)
     learner.fit(evidence)
     print learner.ans

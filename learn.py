@@ -1,5 +1,6 @@
 from factor import DiscreteFactor
-from infer import Model, LoopyBeliefUpdateInference, FloodingProtocol, DistributeCollectProtocol
+from infer import LoopyBeliefUpdateInference, FloodingProtocol, DistributeCollectProtocol
+from model import Model
 import numpy as np
 import scipy.optimize
 
