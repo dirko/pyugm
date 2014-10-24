@@ -128,11 +128,13 @@ class TestModel(unittest.TestCase):
         evidence = {2: 1, 4: 0}
         model.set_evidence(evidence)
 
-        c = DiscreteFactor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2))).set_evidence(evidence)
-        d = DiscreteFactor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2))).set_evidence(evidence)
+        c = DiscreteFactor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2)))
+        c.set_evidence(evidence)
+        d = DiscreteFactor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2)))
+        d.set_evidence(evidence)
 
-        assert_array_almost_equal(c.data, model.factors[0].data)
-        assert_array_almost_equal(d.data, model.factors[1].data)
+        assert_array_almost_equal(c._data, model.factors[0].data)
+        assert_array_almost_equal(d._data, model.factors[1].data)
 
     def test_set_parameters(self):
         a = DiscreteFactor([1, 2], parameters=np.array([[1, 2], ['a', 0.0]], dtype=object))
@@ -145,8 +147,8 @@ class TestModel(unittest.TestCase):
         c = DiscreteFactor([1, 2], np.array([1, 2, 1, 0]).reshape((2, 2)))
         d = DiscreteFactor([2, 3], np.array([2, 3, 4, 1]).reshape((2, 2)))
 
-        assert_array_almost_equal(c.data, model.factors[0].data)
-        assert_array_almost_equal(d.data, model.factors[1].data)
+        assert_array_almost_equal(c._data, model.factors[0].data)
+        assert_array_almost_equal(d._data, model.factors[1].data)
 
 
 class TestLoopyBeliefUpdateInference(unittest.TestCase):
@@ -168,7 +170,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
 
             self.assertSetEqual(separator_factor.variable_set, s.variable_set)
             self.assertDictEqual(separator_factor.cardinalities, s.cardinalities)
-            assert_array_almost_equal(separator_factor.data, s.data)
+            assert_array_almost_equal(separator_factor.data, s._data)
 
     def test_update_beliefs_small(self):
         a = DiscreteFactor([0, 1])
@@ -205,12 +207,12 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
 
         final_a = DiscreteFactor([0, 1])
-        final_a.data *= 2
+        final_a._data *= 2
         final_b = DiscreteFactor([1, 2])
-        final_b.data *= 2
+        final_b._data *= 2
 
-        assert_array_almost_equal(a.get_data(), final_a.get_data())
-        assert_array_almost_equal(b.get_data(), final_b.get_data())
+        assert_array_almost_equal(a.data, final_a.data)
+        assert_array_almost_equal(b.data, final_b.data)
         self.assertAlmostEqual(change1, 0, delta=10**-10)
 
     def test_update_beliefs_disconnected(self):
@@ -239,7 +241,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
             print factor, np.sum(factor.data)
 
         for factor in model.factors:
-            self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(factor.get_data()))
+            self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(factor.data))
         self.assertAlmostEqual(exhaustive_answer.marginalize([7]).get_potential([(7, 1)]),
                                list(model.variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
 
@@ -271,8 +273,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         for factor in model.factors:
             print factor, np.sum(factor.data) + np.exp(factor.log_normalizer)
 
-        self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(a.get_data()))
-        self.assertAlmostEqual(np.sum(exhaustive_answer.get_data()), np.sum(d.get_data()))
+        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(a.data))
+        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(d.data))
 
     def test_exhaustive_enumeration(self):
         a = DiscreteFactor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))
@@ -298,11 +300,11 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         c = inference.exhaustive_enumeration()
 
         d = DiscreteFactor([(0, 2), (1, 3), (2, 2)])
-        d.data = np.array([1, 2, 2, 4, 3, 6, 8, 4, 10, 5, 12, 6]).reshape(2, 3, 2)
+        d._data = np.array([1, 2, 2, 4, 3, 6, 8, 4, 10, 5, 12, 6]).reshape(2, 3, 2)
 
         self.assertEqual(d.variables, c.variables)
         self.assertEqual(d.axis_to_variable, c.axis_to_variable)
-        assert_array_almost_equal(d.data, c.data)
+        assert_array_almost_equal(d._data, c.data)
 
 
 if __name__ == '__main__':

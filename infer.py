@@ -126,7 +126,7 @@ class Model:
         """ param evidence: list of (variable name, value) pairs """
         for variable, value in evidence.items():
             for factor in self.variables_to_factors[variable]:
-                factor.set_evidence({variable: value}, normalize=normalize, inplace=True)
+                factor.set_evidence({variable: value})
 
     def get_marginals(self, variable, normalize=True):
         """
@@ -139,15 +139,15 @@ class Model:
         Iterate through factors and fill factor potentials with exp of these new parameters.
         """
         for factor in self.factors:
-            original_shape = factor.data.shape
-            new_data = factor.data.reshape(-1, )
+            original_shape = factor._data.shape
+            new_data = factor._data.reshape(-1, )
             if factor.parameters is not None:
                 for i, parameter in enumerate(factor.parameters.reshape(-1, )):
                     if isinstance(parameter, str):
                         new_data[i] = np.exp(parameters[self.parameters_to_index[parameter]])
                     else:
                         new_data[i] = parameter
-                factor.data = new_data.reshape(original_shape)
+                factor._data = new_data.reshape(original_shape)
                 factor.log_normalizer = np.log(1.0)
 
 
@@ -199,14 +199,8 @@ class DistributeCollectProtocol(object):
         self._to_visit = set()
         self._visited_factors = set()
         self._forward_edges = []
-        self._direction = 'distribute'
         self.current_iteration_delta = 0.0
         self.total_iterations = 0
-        self.reset()
-
-    def reset(self):
-        self._to_visit = set()
-        self._visited_factors = set()
         for sub_graph in self._model.disconnected_subgraphs:  # Roots
             root_factor = list(sub_graph)[0]
             self._visited_factors.add(root_factor)
@@ -215,12 +209,9 @@ class DistributeCollectProtocol(object):
                     self._to_visit.add(edge[1])
                 elif edge[1] == root_factor:
                     self._to_visit.add(edge[0])
-        self._forward_edges = []
-        self._direction = 'distribute'
-        self.current_iteration_delta = 0.0
-        self.total_iterations = 0
         while len(self._to_visit) > 0:
             next_factor = self._to_visit.pop()
+            next_edge = None
             for edge in self._edges:
                 if edge[0] == next_factor and edge[1] in self._visited_factors:
                     next_edge = (edge[1], edge[0])
@@ -237,13 +228,17 @@ class DistributeCollectProtocol(object):
         reversed_edges = [(edge[1], edge[0]) for edge in self._forward_edges[::-1]]
         self._all_edges = self._forward_edges + reversed_edges
         self._all_edges += self._all_edges
-        self._all_edges = self._all_edges[::-1]
+        self._counter = 0
+
+    def reset(self):
+        self._counter = 0
 
     def next_edge(self, last_update_change):
         """ Get the next edge to update """
         self.current_iteration_delta += last_update_change
-        if len(self._all_edges) >= 1:
-            return_edge = self._all_edges.pop()
+        if self._counter < len(self._all_edges):
+            return_edge = self._all_edges[self._counter]
+            self._counter += 1
             return return_edge
         else:
             return None
@@ -275,13 +270,12 @@ class LoopyBeliefUpdateInference:
         new_separator_divided.multiply(old_separator, divide=True)
         edge[1].multiply(new_separator_divided)
 
-        #new_separators = (new_separator, old_separator)
         reverse_edge = (edge[1], edge[0])
         self.separator_potential[edge] = new_separator
         self.separator_potential[reverse_edge] = new_separator
 
-        num_cells = np.prod(new_separator.data.shape) * 1.0
-        average_change_per_cell = abs(new_separator.data - new_separator._rotate_other(old_separator)).sum() / num_cells
+        num_cells = np.prod(new_separator._data.shape) * 1.0
+        average_change_per_cell = abs(new_separator._data - new_separator._rotate_other(old_separator)).sum() / num_cells
 
         return average_change_per_cell
 
@@ -298,10 +292,10 @@ class LoopyBeliefUpdateInference:
         # Find normaliser
         total_z = 0.0
         for island in self.model.disconnected_subgraphs:
-            total_z += np.log(np.sum(list(island)[0].data)) + list(island)[0].log_normalizer
+            total_z += np.log(np.sum(list(island)[0]._data)) + list(island)[0].log_normalizer
         # Multiply so each factor has the same normaliser
         for island in self.model.disconnected_subgraphs:
-            island_z = np.log(np.sum(list(island)[0].data)) + list(island)[0].log_normalizer
+            island_z = np.log(np.sum(list(island)[0]._data)) + list(island)[0].log_normalizer
             for factor in list(island):
                 factor.log_normalizer += (total_z - island_z)
 
@@ -334,7 +328,7 @@ class LoopyBeliefUpdateInference:
         while not done:
             for factor in self.model.factors:
                 potential_value = factor.get_potential([tuple(var) for var in instantiation])
-                new_factor.data[tuple(var[1] for var in instantiation)] *= potential_value
+                new_factor._data[tuple(var[1] for var in instantiation)] *= potential_value
             done, instantiation = tick_instantiation(instantiation)
 
         return new_factor

@@ -221,5 +221,5 @@ class TestLearnMRFParameters(unittest.TestCase):
         print learn.ans
         #print learn.iterations
         ans2 = learn.ans[:2]
-        assert_array_almost_equal(ans1[1], ans2[1])
-        assert_array_almost_equal(ans1[0], ans2[0])
+        assert_array_almost_equal(ans1[1], ans2[1], decimal=4)
+        assert_array_almost_equal(ans1[0], ans2[0], decimal=4)

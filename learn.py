@@ -33,7 +33,7 @@ class LearnMRFParameters:
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
         change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_total = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
+        log_Z_total = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
 
         self.update_order.reset()
         self.model.set_parameters(self.parameters)
@@ -41,7 +41,7 @@ class LearnMRFParameters:
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
         change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_observed = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
+        log_Z_observed = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
 
         log_likelihood = log_Z_observed - log_Z_total
 
@@ -58,7 +58,7 @@ class LearnMRFParameters:
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
         change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_total = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
+        log_Z_total = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
         model_expected_counts = self.accumulate_expected_counts()
 
         self.update_order.reset()
@@ -67,7 +67,7 @@ class LearnMRFParameters:
         inference = LoopyBeliefUpdateInference(self.model)
         inference.set_up_belief_update()
         change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_observed = np.log(self.model.factors[0].data.sum()) + self.model.factors[0].log_normalizer
+        log_Z_observed = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
         empirical_expected_counts = self.accumulate_expected_counts()
 
         log_likelihood = log_Z_observed - log_Z_total
@@ -87,8 +87,8 @@ class LearnMRFParameters:
         """
         expected_counts = np.zeros(self.parameters.shape)
         for factor in self.model.factors:
-            factor_sum = np.sum(factor.data)
-            for parameter, value in zip(factor.parameters.flatten(), factor.data.flatten()):
+            factor_sum = np.sum(factor._data)
+            for parameter, value in zip(factor.parameters.flatten(), factor._data.flatten()):
                 expected_counts[self.model.parameters_to_index[parameter]] += (value / factor_sum)  # * norm / normalizer
         return expected_counts
 
