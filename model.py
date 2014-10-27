@@ -17,14 +17,14 @@ class Model:
         """
         self.factors = []  # factor objects
         self.cardinalities = dict()  # variable name to int
-        self.variables_to_factors = dict()  # variable name to factor
         self.edges = set()  # pairs of factors
         self.disconnected_subgraphs = []  # list of sets of factors
+        self.parameters_to_index = {}
+        self._variables_to_factors = dict()  # variable name to factor
 
         for factor in factor_list:
             self._add_factor(factor)
 
-        self.parameters_to_index = {}
         # Get number of params and map param to position in param vector
         for factor in self.factors:
             if factor.parameters is not None:
@@ -48,10 +48,10 @@ class Model:
             else:
                 self.cardinalities[variable[0]] = variable[1]
 
-            if variable[0] in self.variables_to_factors:
-                self.variables_to_factors[variable[0]].add(factor)
+            if variable[0] in self._variables_to_factors:
+                self._variables_to_factors[variable[0]].add(factor)
             else:
-                self.variables_to_factors[variable[0]] = {factor}
+                self._variables_to_factors[variable[0]] = {factor}
 
     def _build_graph(self):
         """
@@ -85,7 +85,7 @@ class Model:
                 unmarked_set.remove(edge[1])
 
         # Build graph by greedily adding the largest sepset factors to the above added node
-        for variable, factors in self.variables_to_factors.items():
+        for variable, factors in self._variables_to_factors.items():
             marked_factors = set()
             unmarked_factors = set(factors)
 
@@ -171,7 +171,7 @@ class Model:
             variable.
         """
         for variable, value in evidence.items():
-            for factor in self.variables_to_factors[variable]:
+            for factor in self._variables_to_factors[variable]:
                 factor.set_evidence({variable: value})
 
     def get_marginals(self, variable):
@@ -180,12 +180,12 @@ class Model:
         :param variable: The variable.
         :returns: List of factors.
         """
-        return [factor.marginalize([variable]) for factor in self.variables_to_factors[variable]]
+        return [factor.marginalize([variable]) for factor in self._variables_to_factors[variable]]
 
     def set_parameters(self, parameters):
         """
         Fill factor potentials with exponential of the parameters.
-        :param parameters: Dictionary where the key is a parameter name and the value the value of the parameter.
+        :param parameters: Dictionary where the key is a parameter name and the value the log value of the parameter.
         """
         for factor in self.factors:
             original_shape = factor._data.shape
@@ -197,4 +197,4 @@ class Model:
                     else:
                         new_data[i] = parameter
                 factor._data = new_data.reshape(original_shape)
-                factor.log_normalizer = numpy.log(1.0)
+                factor._log_normalizer = numpy.log(1.0)

@@ -1,6 +1,9 @@
 import unittest
 from factor import DiscreteFactor
-from infer import LoopyBeliefUpdateInference, DistributeCollectProtocol, FloodingProtocol
+from infer import LoopyBeliefUpdateInference
+from infer import DistributeCollectProtocol
+from infer import FloodingProtocol
+from infer import ExhaustiveEnumeration
 from model import Model
 import numpy as np
 from learn import LearnMRFParameters
@@ -29,7 +32,8 @@ class TestLearnMRFParameters(unittest.TestCase):
         evidence = {1: 0, 3: 1}
 
         inference = LoopyBeliefUpdateInference(model)
-        c = inference.exhaustive_enumeration()
+        exact_inference = ExhaustiveEnumeration(model)
+        c = exact_inference.exhaustively_enumerate()
         print c
         print c.data
         print c.get_potential(evidence.items())

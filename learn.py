@@ -1,5 +1,11 @@
+"""
+Module containing classes to learn parameters from examples.
+"""
+
 from factor import DiscreteFactor
-from infer import LoopyBeliefUpdateInference, FloodingProtocol, DistributeCollectProtocol
+from infer import LoopyBeliefUpdateInference
+from infer import FloodingProtocol
+from infer import DistributeCollectProtocol
 from model import Model
 import numpy as np
 import scipy.optimize
@@ -15,8 +21,8 @@ class LearnMRFParameters:
 
         :param prior: Float representing the prior sigma squared of all parameters.
         """
-        self.model = model
-        self.dimension = len(self.model.parameters_to_index)
+        self._model = model
+        self.dimension = len(self._model.parameters_to_index)
         self.parameters = np.random.randn(self.dimension) * initial_noise
         if self.dimension > 0:
             self.prior_location = np.zeros(self.dimension)
@@ -25,24 +31,22 @@ class LearnMRFParameters:
                                      + 0.5 * np.log(np.linalg.det((self.prior_precision))))
         self.update_order = update_order
         if not self.update_order:
-            self.update_order = DistributeCollectProtocol(self.model)
+            self.update_order = DistributeCollectProtocol(self._model)
         self.iterations = []
 
     def evaluate_log_likelihood(self, evidence):
         self.update_order.reset()
-        self.model.set_parameters(self.parameters)
-        inference = LoopyBeliefUpdateInference(self.model)
-        inference.set_up_belief_update()
-        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_total = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
+        self._model.set_parameters(self.parameters)
+        inference = LoopyBeliefUpdateInference(self._model)
+        change = inference.calibrate(update_order=self.update_order, number_of_updates=35)
+        log_Z_total = self._model.factors[0].log_normalizer
 
         self.update_order.reset()
-        self.model.set_parameters(self.parameters)
-        self.model.set_evidence(evidence=evidence)
-        inference = LoopyBeliefUpdateInference(self.model)
-        inference.set_up_belief_update()
-        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_observed = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
+        self._model.set_parameters(self.parameters)
+        self._model.set_evidence(evidence=evidence)
+        inference = LoopyBeliefUpdateInference(self._model)
+        change = inference.calibrate(update_order=self.update_order, number_of_updates=35)
+        log_Z_observed = self._model.factors[0].log_normalizer
 
         log_likelihood = log_Z_observed - log_Z_total
 
@@ -55,20 +59,18 @@ class LearnMRFParameters:
 
     def evaluate_log_likelihood_and_derivative(self, evidence):
         self.update_order.reset()
-        self.model.set_parameters(self.parameters)
-        inference = LoopyBeliefUpdateInference(self.model)
-        inference.set_up_belief_update()
-        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_total = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
+        self._model.set_parameters(self.parameters)
+        inference = LoopyBeliefUpdateInference(self._model)
+        change = inference.calibrate(update_order=self.update_order, number_of_updates=35)
+        log_Z_total = self._model.factors[0].log_normalizer
         model_expected_counts = self.accumulate_expected_counts()
 
         self.update_order.reset()
-        self.model.set_parameters(self.parameters)
-        self.model.set_evidence(evidence=evidence)
-        inference = LoopyBeliefUpdateInference(self.model)
-        inference.set_up_belief_update()
-        change = inference.update_beliefs(update_order=self.update_order, number_of_updates=35)
-        log_Z_observed = np.log(self.model.factors[0]._data.sum()) + self.model.factors[0].log_normalizer
+        self._model.set_parameters(self.parameters)
+        self._model.set_evidence(evidence=evidence)
+        inference = LoopyBeliefUpdateInference(self._model)
+        change = inference.calibrate(update_order=self.update_order, number_of_updates=35)
+        log_Z_observed = self._model.factors[0].log_normalizer
         empirical_expected_counts = self.accumulate_expected_counts()
 
         log_likelihood = log_Z_observed - log_Z_total
@@ -87,10 +89,10 @@ class LearnMRFParameters:
         Go through factors and add parameter values.
         """
         expected_counts = np.zeros(self.parameters.shape)
-        for factor in self.model.factors:
+        for factor in self._model.factors:
             factor_sum = np.sum(factor._data)
             for parameter, value in zip(factor.parameters.flatten(), factor._data.flatten()):
-                expected_counts[self.model.parameters_to_index[parameter]] += (value / factor_sum)  # * norm / normalizer
+                expected_counts[self._model.parameters_to_index[parameter]] += (value / factor_sum)  # * norm / normalizer
         return expected_counts
 
     def fit_without_gradient(self, evidence, initial_parameters=None):

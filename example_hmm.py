@@ -37,8 +37,7 @@ def example_fully_specified_run():
 
     inference = LoopyBeliefUpdateInference(model)
 
-    inference.set_up_belief_update()
-    change = inference.update_beliefs(number_of_updates=185)
+    change = inference.calibrate(number_of_updates=185)
     print change
     for factor in model.factors:
         print factor, factor.data

@@ -3,7 +3,9 @@ from numpy.testing import assert_array_almost_equal
 import numpy as np
 
 from factor import DiscreteFactor
-from infer import LoopyBeliefUpdateInference, DistributeCollectProtocol
+from infer import LoopyBeliefUpdateInference
+from infer import DistributeCollectProtocol
+from infer import ExhaustiveEnumeration
 from model import Model
 
 
@@ -45,14 +47,13 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
 
         model = Model([a, b])
         inference = LoopyBeliefUpdateInference(model)
-        inference.set_up_belief_update()
 
         s = DiscreteFactor([(2, 2)])
-        print inference.separator_potential
+        print inference._separator_potential
         forward_edge = list(model.edges)[0]
         forward_and_backward_edge = [forward_edge, (forward_edge[1], forward_edge[0])]
         for edge in forward_and_backward_edge:
-            separator_factor = inference.separator_potential[edge]
+            separator_factor = inference._separator_potential[edge]
 
             self.assertSetEqual(separator_factor.variable_set, s.variable_set)
             self.assertDictEqual(separator_factor.cardinalities, s.cardinalities)
@@ -63,7 +64,6 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         b = DiscreteFactor([1, 2])
         model = Model([a, b])
         inference = LoopyBeliefUpdateInference(model)
-        inference.set_up_belief_update()
         #                       0
         #                     0  1
         # Phi* = Sum_{0} 1 0 [ 1 1 ]  =  1 0 [ 2 ]
@@ -87,8 +87,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         # Psi*** = Phi*** x Psi* = 2 0 [ 2 2 ]
         #          Phi**             1 [ 2 2 ]
         #
-        change0, iterations0 = inference.update_beliefs(number_of_updates=2)
-        change1, iterations1 = inference.update_beliefs(number_of_updates=3)
+        change0, iterations0 = inference.calibrate(number_of_updates=2)
+        change1, iterations1 = inference.calibrate(number_of_updates=3)
         print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
 
         final_a = DiscreteFactor([0, 1])
@@ -113,12 +113,13 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
 
         inference = LoopyBeliefUpdateInference(model)
 
-        exhaustive_answer = inference.exhaustive_enumeration()  # do first because update_beliefs changes the factors
+        exact_inference = ExhaustiveEnumeration(model)
+        # do first because update_beliefs changes the factors
+        exhaustive_answer = exact_inference.exhaustively_enumerate()
         print 'Exhaust', np.sum(exhaustive_answer.data)
 
-        inference.set_up_belief_update()
         update_order = DistributeCollectProtocol(model)
-        change = inference.update_beliefs(update_order=update_order, number_of_updates=35)
+        change = inference.calibrate(update_order=update_order, number_of_updates=35)
         print change
 
         for factor in model.factors:
@@ -127,7 +128,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         for factor in model.factors:
             self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(factor.data))
         self.assertAlmostEqual(exhaustive_answer.marginalize([7]).get_potential([(7, 1)]),
-                               list(model.variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
+                               list(model._variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
 
     def test_belief_update_larger_tree(self):
         a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]], dtype=np.float64))
@@ -145,12 +146,13 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         print 'edges', model.edges
         inference = LoopyBeliefUpdateInference(model)
 
-        exhaustive_answer = inference.exhaustive_enumeration()  # do first because update_beliefs changes the factors
+        exact_inference = ExhaustiveEnumeration(model)
+        # do first because update_beliefs changes the factors
+        exhaustive_answer = exact_inference.exhaustively_enumerate()
 
         print 'bp'
-        inference.set_up_belief_update()
         update_order = DistributeCollectProtocol(model)
-        change = inference.update_beliefs(update_order=update_order, number_of_updates=35)
+        change = inference.calibrate(update_order=update_order, number_of_updates=35)
         print change
 
         for factor in model.factors:
@@ -178,8 +180,8 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         # 1 2 1 | 6x1=6
 
         model = Model([a, b])
-        inference = LoopyBeliefUpdateInference(model)
-        c = inference.exhaustive_enumeration()
+        exact_inference = ExhaustiveEnumeration(model)
+        c = exact_inference.exhaustively_enumerate()
 
         d = DiscreteFactor([(0, 2), (1, 3), (2, 2)])
         d._data = np.array([1, 2, 2, 4, 3, 6, 8, 4, 10, 5, 12, 6]).reshape(2, 3, 2)

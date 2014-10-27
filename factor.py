@@ -100,11 +100,11 @@ class DiscreteFactor:
         else:
             self._data = numpy.ones(tuple(variable[1] for variable in variables))
 
-        self.log_normalizer = numpy.log(1.0)
+        self._log_normalizer = numpy.log(1.0)
         if normalize:
-            self.log_normalizer = numpy.log(self._data.sum())
-            self._data /= numpy.exp(self.log_normalizer)
-            self.log_normalizer = numpy.log(1.0)
+            self._log_normalizer = numpy.log(self._data.sum())
+            self._data /= numpy.exp(self._log_normalizer)
+            self._log_normalizer = numpy.log(1.0)
 
     def marginalize(self, variables_to_keep):
         """
@@ -125,9 +125,9 @@ class DiscreteFactor:
 
         result_log_norm = numpy.log(result_data.sum())
         result_data = result_data / numpy.exp(result_log_norm)
-        total_log_norm = self.log_normalizer + result_log_norm
+        total_log_norm = self._log_normalizer + result_log_norm
         result_factor = DiscreteFactor(result_variables, result_data)
-        result_factor.log_normalizer = total_log_norm
+        result_factor._log_normalizer = total_log_norm
 
         return result_factor
 
@@ -159,9 +159,9 @@ class DiscreteFactor:
                          assignment1, assignment2,
                          variable1_to_2, divide)
         if divide:
-            self.log_normalizer -= other_factor.log_normalizer
+            self._log_normalizer -= other_factor._log_normalizer
         else:
-            self.log_normalizer += other_factor.log_normalizer
+            self._log_normalizer += other_factor._log_normalizer
 
     def get_potential(self, variable_list):
         """
@@ -173,7 +173,7 @@ class DiscreteFactor:
         for var, assignment in variable_list:
             if var in self.cardinalities:
                 array_position[self.variable_to_axis[var]] = assignment
-        return self._data[tuple(array_position)] * numpy.exp(self.log_normalizer)
+        return self._data[tuple(array_position)] * numpy.exp(self._log_normalizer)
 
     def set_evidence(self, evidence):
         """
@@ -191,7 +191,7 @@ class DiscreteFactor:
         multiplier[tuple(array_position)] = 1
         self._data = self._data * multiplier * 1.0
 
-    def _rotate_other(self, other_factor):
+    def rotate_other(self, other_factor):
         """
         Helper to rotate another factor's potential table so that the variables it shares with this factor are along
         the same axes.
@@ -204,12 +204,28 @@ class DiscreteFactor:
         return other_factor._data.transpose(new_axis_order)
 
     @property
+    def log_normalizer(self):
+        """
+        The log of the normalizing factor for the potential.
+        :returns: The log value.
+        """
+        return numpy.log(numpy.sum(self._data)) + self._log_normalizer
+
+    @property
     def data(self):
         """
         The normalized factor potentials.
         :returns: Potential table.
         """
-        return self._data * numpy.exp(self.log_normalizer)
+        return self._data * numpy.exp(self._log_normalizer)
+
+    @property
+    def log_data(self):
+        """
+        The log of the normalized factor potentials.
+        :returns: Potential table.
+        """
+        return numpy.log(self._data) + self._log_normalizer
 
     def __str__(self):
         """

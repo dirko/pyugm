@@ -13,7 +13,7 @@ class TestFactor(unittest.TestCase):
         a._data[1, 1] = 8
 
         print a.data
-        print a.log_normalizer
+        print a._log_normalizer
         b = a.marginalize([0, 1])
         print
         print b.data
@@ -123,26 +123,26 @@ class TestFactor(unittest.TestCase):
         a._data[0, 1] = 2
         a._data[1, 0] = 5
         a._data[1, 1] = 6
-        a.log_normalizer = 0.0
+        a._log_normalizer = 0.0
 
         b = DiscreteFactor([(1, 2)])
         b._data[0] = 2
         b._data[1] = 3
-        b.log_normalizer = 0.0
+        b._log_normalizer = 0.0
 
         c = DiscreteFactor([(0, 2), (1, 2)])
         c._data[0, 0] = 2
         c._data[0, 1] = 6
         c._data[1, 0] = 10
         c._data[1, 1] = 18
-        c.log_normalizer = 0.0
+        c._log_normalizer = 0.0
 
         a.multiply(b)
 
         print a._data
-        print a.log_normalizer
+        print a._log_normalizer
         print c._data
-        print c.log_normalizer
+        print c._log_normalizer
         print a._data.shape
         print c._data.shape
         self.assertEqual(a.variables, c.variables)
@@ -155,31 +155,31 @@ class TestFactor(unittest.TestCase):
         a._data[0, 1] = 2
         a._data[1, 0] = 5
         a._data[1, 1] = 6
-        a.log_normalizer = 0.0
+        a._log_normalizer = 0.0
 
         e = DiscreteFactor([(0, 2)])
         e._data[0] = 2
         e._data[1] = 3
-        e.log_normalizer = 0.0
+        e._log_normalizer = 0.0
 
         f = DiscreteFactor([(0, 2), (1, 2)])
         f._data[0, 0] = 1 * 2
         f._data[0, 1] = 2 * 2
         f._data[1, 0] = 5 * 3
         f._data[1, 1] = 6 * 3
-        f.log_normalizer = 0.0
+        f._log_normalizer = 0.0
 
         a.multiply(e)
 
         print 'a', a._data
-        print a.log_normalizer
+        print a._log_normalizer
         print 'e', e._data
-        print e.log_normalizer
+        print e._log_normalizer
         print
         print a._data
-        print a.log_normalizer
+        print a._log_normalizer
         print f._data
-        print f.log_normalizer
+        print f._log_normalizer
         print a._data.shape
         print f._data.shape
         self.assertEqual(a.variables, f.variables)
@@ -286,21 +286,21 @@ class TestFactor(unittest.TestCase):
 
     def test_divide_small(self):
         a = DiscreteFactor([(0, 2), (1, 2)], data=np.array([[1.0, 2], [5, 6]]))
-        print 'a', a.log_normalizer
+        print 'a', a._log_normalizer
         #a.data[0, 0] = 1.0
         #a.data[0, 1] = 2.0
         #a.data[1, 0] = 5.0
         #a.data[1, 1] = 6.0
 
         b = DiscreteFactor([(1, 2)], data=np.array([2.0, 3]))
-        print 'b', b.log_normalizer
+        print 'b', b._log_normalizer
         #b.data[0] = 2.0
         #b.data[1] = 3.0
 
         data = np.array([[1.0 / 2.0, 2.0 / 3.0],
                          [5.0 / 2.0, 6.0 / 3.0]])
         c = DiscreteFactor([(0, 2), (1, 2)], data=data)
-        print 'c', c.log_normalizer
+        print 'c', c._log_normalizer
         #c.data[0, 0] = 1.0 / 2.0
         #c.data[0, 1] = 2.0 / 3.0
         #c.data[1, 0] = 5.0 / 2.0
@@ -309,9 +309,9 @@ class TestFactor(unittest.TestCase):
         a.multiply(b, divide=True)
 
         print a._data
-        print a.log_normalizer
+        print a._log_normalizer
         print c._data
-        print c.log_normalizer
+        print c._log_normalizer
         print a._data.shape
         print c._data.shape
         self.assertEqual(a.variables, c.variables)
