@@ -3,62 +3,8 @@ Module containing the factor classes.
 """
 
 import numpy
-from numba import void, f8, i1, b1, njit
+from numba import void, f8, i1, b1, njit, jit
 
-
-@njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1))
-def multiply_factors(data1, data2,
-                     strides1, strides2,
-                     cardinalities2,
-                     assignment1, assignment2,
-                     variable1_to_2, divide):
-    """
-    Fast inplace factor multiplication.
-
-    :param data1: Array to multiply in.
-    :param data2: The larger array, containing all the variables in `data1` and also others.
-    :param strides1: Stride array for `data1`.
-    :param strides2: Stride array for `data2`.
-    :param cardinalities2: Cardinalities of variables in `data2`.
-    :param assignment1: A Numpy array with the same length as `data1`. Used as internal counter.
-    :param assignment2: A Numpy array with the same length as `data2`. Used as internal counter.
-    :param variable1_to_2: Permutation array where `variable1_to_2[i]` gives the index in `data2` of the variable `i` in
-        `data1`.
-    :param divide: Boolean - divides `data2` by `data1` if True, otherwise multiplies.
-    """
-    # Clear assignments
-    for var1_i in range(len(assignment1)):
-        assignment1[var1_i] = 0
-    for var2_i in range(len(assignment2)):
-        assignment2[var2_i] = 0
-    done = False
-
-    while not done:
-        # Assign first from second assignment
-        for var1_i in range(len(assignment1)):
-            assignment1[var1_i] = assignment2[variable1_to_2[var1_i]]
-        # Get indices in data
-        assignment1_index = 0
-        for var1_i in range(len(strides1)):
-            assignment1_index += strides1[var1_i] * assignment1[var1_i]
-        assignment2_index = 0
-        for var2_i in range(len(strides2)):
-            assignment2_index += strides2[var2_i] * assignment2[var2_i]
-        # Multiply
-        if not divide:
-            data2[assignment2_index] *= data1[assignment1_index]
-        else:
-            if data2[assignment2_index] > 0.0:
-                data2[assignment2_index] /= data1[assignment1_index]
-
-        # Tick variable2 assignment
-        assignment2[0] += 1
-        for var2_i in range(len(assignment2) - 1):
-            if assignment2[var2_i] >= cardinalities2[var2_i]:
-                assignment2[var2_i] = 0
-                assignment2[var2_i + 1] += 1
-        if assignment2[-1] >= cardinalities2[-1]:
-            done = True
 
 
 class DiscreteFactor:
@@ -240,3 +186,59 @@ class DiscreteFactor:
         :returns: String representation of the factor.
         """
         return self.__str__()
+
+
+@jit  # (void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1))
+def multiply_factors(data1, data2,
+                     strides1, strides2,
+                     cardinalities2,
+                     assignment1, assignment2,
+                     variable1_to_2, divide):
+    """
+    Fast inplace factor multiplication.
+
+    :param data1: Array to multiply in.
+    :param data2: The larger array, containing all the variables in `data1` and also others.
+    :param strides1: Stride array for `data1`.
+    :param strides2: Stride array for `data2`.
+    :param cardinalities2: Cardinalities of variables in `data2`.
+    :param assignment1: A Numpy array with the same length as `data1`. Used as internal counter.
+    :param assignment2: A Numpy array with the same length as `data2`. Used as internal counter.
+    :param variable1_to_2: Permutation array where `variable1_to_2[i]` gives the index in `data2` of the variable `i` in
+        `data1`.
+    :param divide: Boolean - divides `data2` by `data1` if True, otherwise multiplies.
+    """
+    # Clear assignments
+    for var1_i in range(len(assignment1)):
+        assignment1[var1_i] = 0
+    for var2_i in range(len(assignment2)):
+        assignment2[var2_i] = 0
+    done = False
+
+    while not done:
+        # Assign first from second assignment
+        for var1_i in range(len(assignment1)):
+            assignment1[var1_i] = assignment2[variable1_to_2[var1_i]]
+        # Get indices in data
+        assignment1_index = 0
+        for var1_i in range(len(strides1)):
+            assignment1_index += strides1[var1_i] * assignment1[var1_i]
+        assignment2_index = 0
+        for var2_i in range(len(strides2)):
+            assignment2_index += strides2[var2_i] * assignment2[var2_i]
+        # Multiply
+        if not divide:
+            data2[assignment2_index] *= data1[assignment1_index]
+        else:
+            if data2[assignment2_index] > 0.0:
+                data2[assignment2_index] /= data1[assignment1_index]
+
+        # Tick variable2 assignment
+        assignment2[0] += 1
+        for var2_i in range(len(assignment2) - 1):
+            if assignment2[var2_i] >= cardinalities2[var2_i]:
+                assignment2[var2_i] = 0
+                assignment2[var2_i + 1] += 1
+        if assignment2[-1] >= cardinalities2[-1]:
+            done = True
+

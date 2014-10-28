@@ -147,7 +147,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
-        actual_ans = learner.fit_without_gradient(evidence).ans
+        actual_ans = learner.fit_without_gradient(evidence).optimizer_result
         print actual_ans
         print expected_ans
         self.assertAlmostEqual(actual_ans[1], expected_ans[1])
@@ -180,7 +180,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
-        actual_ans = learner.fit(evidence).ans
+        actual_ans = learner.fit(evidence).optimizer_result
         print actual_ans
         print expected_ans
         self.assertAlmostEqual(actual_ans[1], expected_ans[1])
@@ -208,16 +208,16 @@ class TestLearnMRFParameters(unittest.TestCase):
         update_order = DistributeCollectProtocol(model)
         learn = LearnMRFParameters(model, update_order=update_order)
         learn.fit(evidence)
-        print learn.ans
+        print learn.optimizer_result
         #print learn.iterations
-        ans1 = learn.ans[:2]
+        ans1 = learn.optimizer_result[:2]
 
         print
         update_order = DistributeCollectProtocol(model)
         learn = LearnMRFParameters(model, update_order=update_order)
         learn.fit_without_gradient(evidence)
-        print learn.ans
+        print learn.optimizer_result
         #print learn.iterations
-        ans2 = learn.ans[:2]
+        ans2 = learn.optimizer_result[:2]
         assert_array_almost_equal(ans1[1], ans2[1], decimal=4)
         assert_array_almost_equal(ans1[0], ans2[0], decimal=4)
