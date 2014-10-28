@@ -1,8 +1,9 @@
-from factor import DiscreteFactor
+import numpy as np
+
+from pyugm.factor import DiscreteFactor
 from infer import LoopyBeliefUpdateInference
 from model import Model
 from learn import LearnMRFParameters
-import numpy as np
 
 
 def example_fully_specified_run():

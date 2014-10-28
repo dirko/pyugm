@@ -1,9 +1,10 @@
 import unittest
+
 from numpy.testing import assert_array_almost_equal
 import numpy as np
 
-from factor import DiscreteFactor
-from model import Model
+from pyugm.factor import DiscreteFactor
+from pyugm.model import Model
 
 
 def print_edge_set(edges):

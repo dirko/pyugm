@@ -1,7 +1,9 @@
 import unittest
-from factor import DiscreteFactor
+
 from numpy.testing import assert_array_almost_equal
 import numpy as np
+
+from pyugm.factor import DiscreteFactor
 
 
 class TestFactor(unittest.TestCase):

@@ -1,13 +1,14 @@
 import unittest
-from factor import DiscreteFactor
-from infer import LoopyBeliefUpdateInference
-from infer import DistributeCollectProtocol
-from infer import FloodingProtocol
-from infer import ExhaustiveEnumeration
-from model import Model
+
 import numpy as np
-from learn import LearnMRFParameters
 from numpy.testing import assert_array_almost_equal
+
+from pyugm.factor import DiscreteFactor
+from pyugm.infer import LoopyBeliefUpdateInference
+from pyugm.infer import DistributeCollectProtocol
+from pyugm.infer import ExhaustiveEnumeration
+from pyugm.model import Model
+from pyugm.learn import LearnMRFParameters
 
 
 class TestLearnMRFParameters(unittest.TestCase):
@@ -59,7 +60,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         prior_sigma2 = 2.3
 
         learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
-        learner.parameters = parameters
+        learner._parameters = parameters
 
         actual_log_likelihood = learner.evaluate_log_likelihood(evidence)
 
@@ -97,11 +98,11 @@ class TestLearnMRFParameters(unittest.TestCase):
             prior_sigma2 = 2.3
 
             learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
-            learner.parameters = parameters
-            actual_log_likelihood1, actual_derivative1 = learner.evaluate_log_likelihood_and_derivative(evidence)
+            learner._parameters = parameters
+            actual_log_likelihood1, actual_derivative1 = learner.evaluate_log_likelihood_and_gradient(evidence)
 
-            learner.parameters = parameters_plus_delta
-            actual_log_likelihood2, actual_derivative2 = learner.evaluate_log_likelihood_and_derivative(evidence)
+            learner._parameters = parameters_plus_delta
+            actual_log_likelihood2, actual_derivative2 = learner.evaluate_log_likelihood_and_gradient(evidence)
 
             expected_deriv = (actual_log_likelihood2 - actual_log_likelihood1) / delta  # * delta_vector / delta / delta
 
@@ -146,8 +147,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
-        #x0 = np.ones(2) * 0.000
-        actual_ans = learner.fit_without_gradient(evidence).ans#, x0)
+        actual_ans = learner.fit_without_gradient(evidence).ans
         print actual_ans
         print expected_ans
         self.assertAlmostEqual(actual_ans[1], expected_ans[1])
@@ -180,8 +180,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
-        #x0 = np.ones(2) * 0.000
-        actual_ans = learner.fit(evidence).ans#, x0)
+        actual_ans = learner.fit(evidence).ans
         print actual_ans
         print expected_ans
         self.assertAlmostEqual(actual_ans[1], expected_ans[1])
@@ -193,8 +192,8 @@ class TestLearnMRFParameters(unittest.TestCase):
         factors = []
         hidden_factors = []
         evidence = {}
-        o_parameters=np.array([['a', 'b'], ['c', 'd']])
-        h_parameters=np.array([['e', 'f'], ['g', 'h']])
+        o_parameters = np.array([['a', 'b'], ['c', 'd']])
+        h_parameters = np.array([['e', 'f'], ['g', 'h']])
         for i, (s, sh) in enumerate(zip(seq, seqh)):
             obs = DiscreteFactor(['o_{}'.format(i), 'h_{}'.format(i)], parameters=o_parameters)
             evidence['o_{}'.format(i)] = s

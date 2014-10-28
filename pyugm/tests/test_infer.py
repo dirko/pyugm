@@ -1,12 +1,14 @@
 import unittest
+
 from numpy.testing import assert_array_almost_equal
 import numpy as np
 
-from factor import DiscreteFactor
-from infer import LoopyBeliefUpdateInference
-from infer import DistributeCollectProtocol
-from infer import ExhaustiveEnumeration
-from model import Model
+from pyugm.factor import DiscreteFactor
+from pyugm.infer import LoopyBeliefUpdateInference
+from pyugm.infer import FloodingProtocol
+from pyugm.infer import DistributeCollectProtocol
+from pyugm.infer import ExhaustiveEnumeration
+from pyugm.model import Model
 
 
 def print_edge_set(edges):
@@ -87,8 +89,10 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         # Psi*** = Phi*** x Psi* = 2 0 [ 2 2 ]
         #          Phi**             1 [ 2 2 ]
         #
-        change0, iterations0 = inference.calibrate(number_of_updates=2)
-        change1, iterations1 = inference.calibrate(number_of_updates=3)
+        update_order1 = FloodingProtocol(model=model, max_iterations=2)
+        change0, iterations0 = inference.calibrate(update_order1)
+        update_order2 = FloodingProtocol(model=model, max_iterations=3)
+        change1, iterations1 = inference.calibrate(update_order2)
         print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
 
         final_a = DiscreteFactor([0, 1])
@@ -119,7 +123,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
         print 'Exhaust', np.sum(exhaustive_answer.data)
 
         update_order = DistributeCollectProtocol(model)
-        change = inference.calibrate(update_order=update_order, number_of_updates=35)
+        change = inference.calibrate(update_order=update_order)
         print change
 
         for factor in model.factors:
@@ -152,7 +156,7 @@ class TestLoopyBeliefUpdateInference(unittest.TestCase):
 
         print 'bp'
         update_order = DistributeCollectProtocol(model)
-        change = inference.calibrate(update_order=update_order, number_of_updates=35)
+        change = inference.calibrate(update_order=update_order)
         print change
 
         for factor in model.factors:

@@ -2,8 +2,9 @@
 Module containing the inference routines.
 """
 
-from factor import DiscreteFactor
 import numpy as np
+
+from pyugm.factor import DiscreteFactor
 
 
 class LoopyBeliefUpdateInference:
@@ -55,7 +56,7 @@ class LoopyBeliefUpdateInference:
 
         return average_change_per_cell
 
-    def calibrate(self, update_order=None, number_of_updates=100):
+    def calibrate(self, update_order=None):
         """
         Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
         scheme.
@@ -63,7 +64,7 @@ class LoopyBeliefUpdateInference:
         :param number_of_updates: Number of times to update every edge if the default Flooding protocol is used.
         """
         if not update_order:
-            update_order = FloodingProtocol(self._model, max_iterations=number_of_updates)
+            update_order = FloodingProtocol(self._model)
 
         average_change_per_cell = 0
         edge = update_order.next_edge(average_change_per_cell)
@@ -140,7 +141,7 @@ class FloodingProtocol:
     """
     Defines an update ordering where updates are done in both directions for each edge in the cluster graph.
     """
-    def __init__(self, model, max_iterations=np.inf, converge_delta=10**-10):
+    def __init__(self, model, max_iterations=20, converge_delta=10**-10):
         """
         Constructor.
         :param model: The model.
