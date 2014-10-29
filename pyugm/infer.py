@@ -1,13 +1,14 @@
 """
 Module containing the inference routines.
 """
+# License: BSD 3 clause
 
-import numpy as np
+import numpy
 
 from pyugm.factor import DiscreteFactor
 
 
-class LoopyBeliefUpdateInference:
+class LoopyBeliefUpdateInference(object):
     """
     An inference object to calibrate the potentials.
     """
@@ -51,7 +52,7 @@ class LoopyBeliefUpdateInference:
         self._separator_potential[edge] = new_separator
         self._separator_potential[reverse_edge] = new_separator
 
-        num_cells = np.prod(new_separator.data.shape) * 1.0
+        num_cells = numpy.prod(new_separator.data.shape) * 1.0
         average_change_per_cell = abs(new_separator.data - new_separator.rotate_other(old_separator)).sum() / num_cells
 
         return average_change_per_cell
@@ -61,7 +62,6 @@ class LoopyBeliefUpdateInference:
         Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
         scheme.
         :param update_order: A message update protocol. If `None`, `FloodingProtocol` is used.
-        :param number_of_updates: Number of times to update every edge if the default Flooding protocol is used.
         """
         if not update_order:
             update_order = FloodingProtocol(self._model)
@@ -85,7 +85,7 @@ class LoopyBeliefUpdateInference:
         return update_order.current_iteration_delta, update_order.total_iterations
 
 
-class ExhaustiveEnumeration:
+class ExhaustiveEnumeration(object):
     """
     A test inference object to build the complete potential table.
     """
@@ -102,12 +102,11 @@ class ExhaustiveEnumeration:
         :returns: A factor of all the variables in the original model.
         """
         variables = [(key, value) for key, value in self._model.cardinalities.items()]
-        table_shape = [cardinality for cardinality, variable_name in variables]
-        table_size = np.prod(table_shape)
+        table_shape = [cardinality for _, cardinality in variables]
+        table_size = numpy.prod(table_shape)
         if table_size > 10**7:
             raise Exception('Model too large for exhaustive enumeration')
 
-        new_factor = DiscreteFactor(variables)
         instantiation = [[var[0], 0] for var in variables]
 
         def _tick_instantiation(i_list):
@@ -127,17 +126,19 @@ class ExhaustiveEnumeration:
                 i_done = True
             return i_done, i_list
 
+        data = numpy.ones(table_shape)
         done = False
         while not done:
             for factor in self._model.factors:
                 potential_value = factor.get_potential([tuple(var) for var in instantiation])
-                new_factor._data[tuple(var[1] for var in instantiation)] *= potential_value
+                data[tuple(var[1] for var in instantiation)] *= potential_value
             done, instantiation = _tick_instantiation(instantiation)
 
+        new_factor = DiscreteFactor(variables, data=data)
         return new_factor
 
 
-class FloodingProtocol:
+class FloodingProtocol(object):
     """
     Defines an update ordering where updates are done in both directions for each edge in the cluster graph.
     """

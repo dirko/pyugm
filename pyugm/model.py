@@ -1,6 +1,7 @@
 """
 Module containing the Model class.
 """
+# License: BSD 3 clause
 
 import numpy
 

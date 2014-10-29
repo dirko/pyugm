@@ -1,2 +1,7 @@
 [FORMAT]
 max-line-length=160
+
+[DESIGN]
+max-locals=17
+max-attributes=9
+min-public-methods=1

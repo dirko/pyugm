@@ -1,6 +1,7 @@
 """
 Module containing classes to learn parameters from examples.
 """
+# License: BSD 3 clause
 
 import numpy as np
 import scipy.optimize
@@ -9,7 +10,7 @@ from pyugm.infer import LoopyBeliefUpdateInference
 from pyugm.infer import FloodingProtocol
 
 
-class LearnMRFParameters:
+class LearnMRFParameters(object):
     """
     Find a Gaussian approximation to the posterior given a model and prior.
     """
@@ -47,16 +48,16 @@ class LearnMRFParameters:
         self._model.set_parameters(self._parameters)
         inference = LoopyBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
-        log_Z_total = self._model.factors[0].log_normalizer
+        log_z_total = self._model.factors[0].log_normalizer
 
         self._update_order.reset()
         self._model.set_parameters(self._parameters)
         self._model.set_evidence(evidence=evidence)
         inference = LoopyBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
-        log_Z_observed = self._model.factors[0].log_normalizer
+        log_z_observed = self._model.factors[0].log_normalizer
 
-        log_likelihood = log_Z_observed - log_Z_total
+        log_likelihood = log_z_observed - log_z_total
 
         if self._dimension > 0:
             log_likelihood += -0.5 * np.dot(np.dot((self._parameters - self._prior_location).T,
@@ -64,7 +65,7 @@ class LearnMRFParameters:
             log_likelihood += self._prior_normaliser
         return log_likelihood
 
-    def evaluate_log_likelihood_and_gradient(self, evidence):
+    def evaluate_log_likelihood_gradient(self, evidence):
         """
         Run inference on the model to find the log-likelihood of the model given evidence and its gradient with respect
             to the model parameters.
@@ -75,7 +76,7 @@ class LearnMRFParameters:
         self._model.set_parameters(self._parameters)
         inference = LoopyBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
-        log_Z_total = self._model.factors[0].log_normalizer
+        log_z_total = self._model.factors[0].log_normalizer
         model_expected_counts = self._accumulate_expected_counts()
 
         self._update_order.reset()
@@ -83,10 +84,10 @@ class LearnMRFParameters:
         self._model.set_evidence(evidence=evidence)
         inference = LoopyBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
-        log_Z_observed = self._model.factors[0].log_normalizer
+        log_z_observed = self._model.factors[0].log_normalizer
         empirical_expected_counts = self._accumulate_expected_counts()
 
-        log_likelihood = log_Z_observed - log_Z_total
+        log_likelihood = log_z_observed - log_z_total
         derivative = empirical_expected_counts - model_expected_counts
 
         if self._dimension > 0:

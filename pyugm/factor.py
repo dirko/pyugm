@@ -1,25 +1,25 @@
 """
 Module containing the factor classes.
 """
+# License: BSD 3 clause
 
 import numpy
-from numba import void, f8, i1, b1, njit, jit
+from numba import jit  # void, f8, i1, b1, njit, jit
 
 
-
-class DiscreteFactor:
+class DiscreteFactor(object):
     """
     A factor containing only discrete variables.
     """
 
-    def __init__(self, variables, data=None, normalize=False, parameters=None):
+    def __init__(self, variables, data=None, log_normalizer=0.0, parameters=None):
         """
         Constructor.
 
         :param variables: A list of (variable_name, cardinality) tuples, where variable_name is a string or int.
             If only a list of names is provided, cardinalities are assumed to be 2.
         :param data: ndarray of factor potentials.
-        :param normalize: Whether to normalize the potential table.
+        :param log_normalizer: The log of the factor with which the whole potential is multiplied.
         :param parameters: ndarray of parameter names (strings or integers). Must be the same shape as the potential
             table.
         """
@@ -46,11 +46,7 @@ class DiscreteFactor:
         else:
             self._data = numpy.ones(tuple(variable[1] for variable in variables))
 
-        self._log_normalizer = numpy.log(1.0)
-        if normalize:
-            self._log_normalizer = numpy.log(self._data.sum())
-            self._data /= numpy.exp(self._log_normalizer)
-            self._log_normalizer = numpy.log(1.0)
+        self._log_normalizer = log_normalizer
 
     def marginalize(self, variables_to_keep):
         """
@@ -59,10 +55,10 @@ class DiscreteFactor:
 
         """
         axes = [self.variable_to_axis[own_variable_name]
-                for own_variable_name, own_variable_card in self.variables
+                for own_variable_name, _ in self.variables
                 if own_variable_name not in variables_to_keep]
         result_variables = [variable for variable in self.variables if variable[0] in variables_to_keep]
-        result_shape = [cardinality for name, cardinality in result_variables]
+        result_shape = [cardinality for _, cardinality in result_variables]
 
         if axes:
             result_data = numpy.sum(self._data, axis=tuple(axes)).reshape(result_shape)
@@ -72,8 +68,7 @@ class DiscreteFactor:
         result_log_norm = numpy.log(result_data.sum())
         result_data = result_data / numpy.exp(result_log_norm)
         total_log_norm = self._log_normalizer + result_log_norm
-        result_factor = DiscreteFactor(result_variables, result_data)
-        result_factor._log_normalizer = total_log_norm
+        result_factor = DiscreteFactor(result_variables, result_data, log_normalizer=total_log_norm)
 
         return result_factor
 
@@ -83,6 +78,7 @@ class DiscreteFactor:
         :param other_factor: The other factor to multiply into this factor.
         :param divide: If true then the other factor is divided into this factor, otherwise multiplied.
         """
+        # pylint: disable=protected-access
         dim1 = len(other_factor.variables)
         dim2 = len(self.variables)
         strides1 = numpy.array(other_factor._data.strides, dtype=numpy.int8) / other_factor._data.itemsize
@@ -144,10 +140,10 @@ class DiscreteFactor:
         :param other_factor: The other factor.
         """
         other_variable_order = [other_factor.axis_to_variable[other_axis]
-                                for other_axis in xrange(len(other_factor._data.shape))]
+                                for other_axis in xrange(len(other_factor.data.shape))]
         new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
                           for axis in xrange(len(other_variable_order))]
-        return other_factor._data.transpose(new_axis_order)
+        return other_factor.data.transpose(new_axis_order)
 
     @property
     def log_normalizer(self):
@@ -208,6 +204,7 @@ def multiply_factors(data1, data2,
         `data1`.
     :param divide: Boolean - divides `data2` by `data1` if True, otherwise multiplies.
     """
+    # pylint: disable=too-many-arguments
     # Clear assignments
     for var1_i in range(len(assignment1)):
         assignment1[var1_i] = 0
@@ -241,4 +238,3 @@ def multiply_factors(data1, data2,
                 assignment2[var2_i + 1] += 1
         if assignment2[-1] >= cardinalities2[-1]:
             done = True
-
