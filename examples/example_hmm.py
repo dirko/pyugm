@@ -1,9 +1,10 @@
+#!/bin/python
 import numpy as np
 
 from pyugm.factor import DiscreteFactor
-from infer import LoopyBeliefUpdateInference
-from model import Model
-from learn import LearnMRFParameters
+from pyugm.infer import LoopyBeliefUpdateInference
+from pyugm.model import Model
+from pyugm.learn import LearnMRFParameters
 
 
 def example_fully_specified_run():
