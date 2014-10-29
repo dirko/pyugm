@@ -1,5 +1,7 @@
 # Python
 *.pyc
+dist/
+MANIFEST
 
 # Other files to ignore
 *~
@@ -7,4 +9,4 @@
 *.DS_Store
 *.swp
 *.out
-*.idea/
+.idea/
