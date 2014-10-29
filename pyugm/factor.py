@@ -123,6 +123,8 @@ class DiscreteFactor(object):
         :param evidence: Dictionary where the key is the variable name and the value its value.
         :return: new factor if inplace is True, else this factor.
         """
+        # TODO: At the moment the factor is reduced by simply setting all unobserved values in the table to zero.
+        #       Find a more efficient way of doing this.
         array_position = [slice(self.cardinalities[self.axis_to_variable[axis]])
                           for axis in xrange(len(self.variables))]
         for var, assignment in evidence.items():
