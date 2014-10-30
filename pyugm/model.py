@@ -132,7 +132,7 @@ class Model:
 
     def _find_disconnected_subgraphs(self):
         """
-        Helper to find islands of factor nodes and adds them to `disconnected_subgraphs`.
+        Helper to find islands of factor nodes and add them to the `disconnected_subgraphs` attribute.
         """
         def _connected_factors(factor_to_follow):
             """

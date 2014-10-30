@@ -51,7 +51,7 @@ class DiscreteFactor(object):
     def marginalize(self, variables_to_keep):
         """
         Marginalize a potential table.
-        :param variables_to_keep: A list of variables to keep. All other variables in the factor is marginalized out.
+        :param variables_to_keep: A list of variables to keep. All other variables in the factor are marginalized out.
 
         """
         axes = [self.variable_to_axis[own_variable_name]
@@ -121,7 +121,6 @@ class DiscreteFactor(object):
         """
         Pin the variables to certain values - reducing the factor.
         :param evidence: Dictionary where the key is the variable name and the value its value.
-        :return: new factor if inplace is True, else this factor.
         """
         # TODO: At the moment the factor is reduced by simply setting all unobserved values in the table to zero.
         #       Find a more efficient way of doing this.
@@ -207,6 +206,7 @@ def multiply_factors(data1, data2,
     :param divide: Boolean - divides `data2` by `data1` if True, otherwise multiplies.
     """
     # pylint: disable=too-many-arguments
+    # TODO: This is still quite slow - think about moving the complete update code to infer.py and to C or Cython.
     # Clear assignments
     for var1_i in range(len(assignment1)):
         assignment1[var1_i] = 0

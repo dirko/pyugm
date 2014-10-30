@@ -40,7 +40,7 @@ class LearnMRFParameters(object):
 
     def evaluate_log_likelihood(self, evidence):
         """
-        Runs inference on the model to find the log-likelihood of the model given evidence.
+        Run inference on the model to find the log-likelihood of the model given evidence.
         :param evidence: A dictionary where the key is a variable name and the value its observed value.
         :returns: The log-likelihood.
         """
