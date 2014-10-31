@@ -138,11 +138,11 @@ class TestModel(unittest.TestCase):
         b = DiscreteFactor([2, 3], parameters=np.array([['b', 'c'], ['d', 'a']]))
         model = Model([a, b])
         print a.parameters
-        new_parameters = np.log(np.array([1, 2, 3, 4]))
+        new_parameters = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         model.set_parameters(new_parameters)
 
-        c = DiscreteFactor([1, 2], np.array([1, 2, 1, 0]).reshape((2, 2)))
-        d = DiscreteFactor([2, 3], np.array([2, 3, 4, 1]).reshape((2, 2)))
+        c = DiscreteFactor([1, 2], np.array([1, 2, np.exp(1), 0]).reshape((2, 2)))
+        d = DiscreteFactor([2, 3], np.array([np.exp(2), np.exp(3), np.exp(4), np.exp(1)]).reshape((2, 2)))
 
         assert_array_almost_equal(c._data, model.factors[0].data)
         assert_array_almost_equal(d._data, model.factors[1].data)

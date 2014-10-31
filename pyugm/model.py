@@ -20,20 +20,11 @@ class Model:
         self.cardinalities = dict()  # variable name to int
         self.edges = set()  # pairs of factors
         self.disconnected_subgraphs = []  # list of sets of factors
-        self.parameters_to_index = {}
         self._variables_to_factors = dict()  # variable name to factor
 
         for factor in factor_list:
             self._add_factor(factor)
 
-        # Get number of params and map param to position in param vector
-        for factor in self.factors:
-            if factor.parameters is not None:
-                for parameter in factor.parameters.reshape(-1, ):
-                    if isinstance(parameter, str):
-                        self.parameters_to_index[parameter] = 0
-        for index, key in enumerate(sorted(self.parameters_to_index.keys())):
-            self.parameters_to_index[key] = index
         self._build_graph()
 
     def _add_factor(self, factor):
@@ -190,11 +181,11 @@ class Model:
         """
         for factor in self.factors:
             original_shape = factor._data.shape
-            new_data = factor._data.reshape(-1, )
             if factor.parameters is not None:
+                new_data = factor._data.reshape(-1, )
                 for i, parameter in enumerate(factor.parameters.reshape(-1, )):
                     if isinstance(parameter, str):
-                        new_data[i] = numpy.exp(parameters[self.parameters_to_index[parameter]])
+                        new_data[i] = numpy.exp(parameters[parameter])
                     else:
                         new_data[i] = parameter
                 factor._data = new_data.reshape(original_shape)

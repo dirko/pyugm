@@ -41,7 +41,7 @@ class TestLearnMRFParameters(unittest.TestCase):
 
         learner = LearnMRFParameters(model)
 
-        actual_log_likelihood = learner.evaluate_log_likelihood(evidence)
+        actual_log_likelihood, _ = learner.evaluate_log_likelihood_gradient(evidence)
         print actual_log_likelihood, np.log(0.18)
         self.assertAlmostEqual(actual_log_likelihood, np.log(0.18))
 
@@ -50,19 +50,19 @@ class TestLearnMRFParameters(unittest.TestCase):
         b = DiscreteFactor(['2', '3'], parameters=np.array([['e', 'f'], ['g', 'h']]))
 
         model = Model([a, b])
-        D = len(model.parameters_to_index)
+        prior_sigma2 = 2.3
+        learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
+        D = 8
         parameters = np.zeros(D)
         parameter_out_of_order = [1, 2, 3, 4, 3, 4, 5, 7]
         parameter_names = [c for c in 'abcdefgh']
         for param, param_name in zip(parameter_out_of_order, parameter_names):
-            parameters[model.parameters_to_index[param_name]] = np.log(param)
+            parameters[learner._parameters_to_index[param_name]] = np.log(param)
         evidence = {'1': 0, '3': 1}
-        prior_sigma2 = 2.3
 
-        learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
         learner._parameters = parameters
 
-        actual_log_likelihood = learner.evaluate_log_likelihood(evidence)
+        actual_log_likelihood, _ = learner.evaluate_log_likelihood_gradient(evidence)
 
         prior_factor = D * (-0.5 * np.log((2.0 * np.pi * prior_sigma2)))
         print 'pn', prior_factor, D * -0.5 * np.log(prior_sigma2)
@@ -80,7 +80,9 @@ class TestLearnMRFParameters(unittest.TestCase):
             c = DiscreteFactor(['3', '4'], parameters=np.array([['i', 'j'], ['k', 'l']]))
 
             model = Model([a, b, c])
-            D = len(model.parameters_to_index)
+            prior_sigma2 = 2.3
+            learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
+            D = 12
 
             delta_vector = np.zeros(D)
             delta_vector[variable_index] = delta
@@ -90,19 +92,17 @@ class TestLearnMRFParameters(unittest.TestCase):
             parameter_out_of_order = [1, 2, 3, 4, 3, 4, 5, 7, 8, 9, 10, 11]
             parameter_names = [c for c in 'abcdefghijkl']
             for param, param_name in zip(parameter_out_of_order, parameter_names):
-                parameters[model.parameters_to_index[param_name]] = np.log(param)
-                parameters_plus_delta[model.parameters_to_index[param_name]] = np.log(param)
+                parameters[learner._parameters_to_index[param_name]] = np.log(param)
+                parameters_plus_delta[learner._parameters_to_index[param_name]] = np.log(param)
             parameters_plus_delta += delta_vector
 
             evidence = {'1': 0, '3': 1}
-            prior_sigma2 = 2.3
 
-            learner = LearnMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
             learner._parameters = parameters
-            actual_log_likelihood1, actual_derivative1 = learner.evaluate_log_likelihood_and_gradient(evidence)
+            actual_log_likelihood1, actual_derivative1 = learner.evaluate_log_likelihood_gradient(evidence)
 
             learner._parameters = parameters_plus_delta
-            actual_log_likelihood2, actual_derivative2 = learner.evaluate_log_likelihood_and_gradient(evidence)
+            actual_log_likelihood2, actual_derivative2 = learner.evaluate_log_likelihood_gradient(evidence)
 
             expected_deriv = (actual_log_likelihood2 - actual_log_likelihood1) / delta  # * delta_vector / delta / delta
 
@@ -147,11 +147,11 @@ class TestLearnMRFParameters(unittest.TestCase):
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
-        actual_ans = learner.fit_without_gradient(evidence).optimizer_result
+        actual_ans = learner.fit_without_gradient(evidence).result()
         print actual_ans
         print expected_ans
-        self.assertAlmostEqual(actual_ans[1], expected_ans[1])
-        assert_array_almost_equal(actual_ans[0], expected_ans[0], decimal=4)
+        self.assertAlmostEqual(actual_ans[0], expected_ans[1])
+        assert_array_almost_equal(actual_ans[1], expected_ans[0], decimal=4)
 
     def test_learn_with_gradient_binary(self):
         tc1 = 70
@@ -180,11 +180,11 @@ class TestLearnMRFParameters(unittest.TestCase):
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
-        actual_ans = learner.fit(evidence).optimizer_result
+        actual_ans = learner.fit(evidence).result()
         print actual_ans
         print expected_ans
-        self.assertAlmostEqual(actual_ans[1], expected_ans[1])
-        assert_array_almost_equal(actual_ans[0], expected_ans[0], decimal=5)
+        self.assertAlmostEqual(actual_ans[0], expected_ans[1])
+        assert_array_almost_equal(actual_ans[1], expected_ans[0], decimal=5)
 
     def test_compare_gradientless_and_gradient_learning(self):
         seq = [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
@@ -208,16 +208,16 @@ class TestLearnMRFParameters(unittest.TestCase):
         update_order = DistributeCollectProtocol(model)
         learn = LearnMRFParameters(model, update_order=update_order)
         learn.fit(evidence)
-        print learn.optimizer_result
+        print learn._optimizer_result
         #print learn.iterations
-        ans1 = learn.optimizer_result[:2]
+        ans1 = learn._optimizer_result[:2]
 
         print
         update_order = DistributeCollectProtocol(model)
         learn = LearnMRFParameters(model, update_order=update_order)
         learn.fit_without_gradient(evidence)
-        print learn.optimizer_result
+        print learn._optimizer_result
         #print learn.iterations
-        ans2 = learn.optimizer_result[:2]
+        ans2 = learn._optimizer_result[:2]
         assert_array_almost_equal(ans1[1], ans2[1], decimal=4)
         assert_array_almost_equal(ans1[0], ans2[0], decimal=4)

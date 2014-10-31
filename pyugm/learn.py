@@ -21,7 +21,21 @@ class LearnMRFParameters(object):
         :param prior: Float representing the prior sigma squared of all parameters.
         """
         self._model = model
-        self._dimension = len(self._model.parameters_to_index)
+
+        # Get number of parameters and map parameters to position in parameter vector
+        parameter_set = set()
+        for factor in self._model.factors:
+            if factor.parameters is not None:
+                for parameter in factor.parameters.reshape(-1, ):
+                    if isinstance(parameter, str):
+                        parameter_set.add(parameter)
+        self._index_to_parameters = {}
+        self._parameters_to_index = {}
+        for index, key in enumerate(sorted(list(parameter_set))):
+            self._index_to_parameters[index] = key
+            self._parameters_to_index[key] = index
+
+        self._dimension = len(self._index_to_parameters)
         self._parameters = np.random.randn(self._dimension) * initial_noise
         if self._dimension > 0:
             self._prior_location = np.zeros(self._dimension)
@@ -33,37 +47,18 @@ class LearnMRFParameters(object):
             self._update_order = FloodingProtocol(self._model)
 
         # Results
-        self.iterations = []
-        self.optimizer_result = None
-        self.log_likelihood = None
-        self.parameters = None
+        self._iterations = []
+        self._optimizer_result = None
 
-    def evaluate_log_likelihood(self, evidence):
+    @property
+    def parameters(self):
         """
-        Run inference on the model to find the log-likelihood of the model given evidence.
-        :param evidence: A dictionary where the key is a variable name and the value its observed value.
-        :returns: The log-likelihood.
+        Helper to update the potential tables given the parameters.
         """
-        self._update_order.reset()
-        self._model.set_parameters(self._parameters)
-        inference = LoopyBeliefUpdateInference(self._model)
-        inference.calibrate(update_order=self._update_order)
-        log_z_total = self._model.factors[0].log_normalizer
-
-        self._update_order.reset()
-        self._model.set_parameters(self._parameters)
-        self._model.set_evidence(evidence=evidence)
-        inference = LoopyBeliefUpdateInference(self._model)
-        inference.calibrate(update_order=self._update_order)
-        log_z_observed = self._model.factors[0].log_normalizer
-
-        log_likelihood = log_z_observed - log_z_total
-
-        if self._dimension > 0:
-            log_likelihood += -0.5 * np.dot(np.dot((self._parameters - self._prior_location).T,
-                                                   self._prior_precision), (self._parameters - self._prior_location))
-            log_likelihood += self._prior_normaliser
-        return log_likelihood
+        parameter_dictionary = {}
+        for i, value in enumerate(self._parameters):
+            parameter_dictionary[self._index_to_parameters[i]] = value
+        return parameter_dictionary
 
     def evaluate_log_likelihood_gradient(self, evidence):
         """
@@ -73,14 +68,14 @@ class LearnMRFParameters(object):
         :returns: The log-likelihood and a vector of derivatives.
         """
         self._update_order.reset()
-        self._model.set_parameters(self._parameters)
+        self._model.set_parameters(self.parameters)
         inference = LoopyBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
         log_z_total = self._model.factors[0].log_normalizer
         model_expected_counts = self._accumulate_expected_counts()
 
         self._update_order.reset()
-        self._model.set_parameters(self._parameters)
+        self._model.set_parameters(self.parameters)
         self._model.set_evidence(evidence=evidence)
         inference = LoopyBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
@@ -106,7 +101,8 @@ class LearnMRFParameters(object):
         for factor in self._model.factors:
             factor_sum = np.sum(factor._data)
             for parameter, value in zip(factor.parameters.flatten(), factor._data.flatten()):
-                expected_counts[self._model.parameters_to_index[parameter]] += (value / factor_sum)  # * norm / normalizer
+                if isinstance(parameter, str):
+                    expected_counts[self._parameters_to_index[parameter]] += (value / factor_sum)  # * norm / normalizer
         return expected_counts
 
     def fit_without_gradient(self, evidence, initial_parameters=None):
@@ -127,13 +123,11 @@ class LearnMRFParameters(object):
             :returns: Negative log-likelihood.
             """
             self._parameters = x
-            ll = self.evaluate_log_likelihood(evidence)
-            self.iterations.append([ll, x])
+            ll, _ = self.evaluate_log_likelihood_gradient(evidence)
+            self._iterations.append([ll, x])
             return -ll
 
-        self.optimizer_result = scipy.optimize.fmin_l_bfgs_b(f, x0, approx_grad=True, pgtol=10.0**-10)
-        self.log_likelihood = self.optimizer_result[1]
-        self.parameters = self.optimizer_result[0]
+        self._optimizer_result = scipy.optimize.fmin_l_bfgs_b(f, x0, approx_grad=True, pgtol=10.0**-10)
         return self
 
     def fit(self,
@@ -159,11 +153,19 @@ class LearnMRFParameters(object):
             :returns: Negative log-likelihood. gradient.
             """
             self._parameters = x
-            ll, grad = self.evaluate_log_likelihood_and_gradient(evidence)
-            self.iterations.append([ll, x])
+            ll, grad = self.evaluate_log_likelihood_gradient(evidence)
+            self._iterations.append([ll, x])
             return -ll, -grad
 
-        self.optimizer_result = optimizer(f, x0, **optimizer_kwargs)
-        self.log_likelihood = self.optimizer_result[1]
-        self.parameters = self.optimizer_result[0]
+        self._optimizer_result = optimizer(f, x0, **optimizer_kwargs)
         return self
+
+    def result(self):
+        """
+        Get the result object after learning.
+        :returns: Log-likelihood, parameters that maximises the log-likelihood.
+        """
+        if self._optimizer_result:
+            return self._optimizer_result[1], self._optimizer_result[0]
+        else:
+            raise Exception('No result yet - run fit.')
