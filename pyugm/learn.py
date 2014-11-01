@@ -3,7 +3,7 @@ Module containing classes to learn parameters from examples.
 """
 # License: BSD 3 clause
 
-import numpy as np
+import numpy
 import scipy.optimize
 
 from pyugm.infer import LoopyBeliefUpdateInference
@@ -36,12 +36,12 @@ class LearnMRFParameters(object):
             self._parameters_to_index[key] = index
 
         self._dimension = len(self._index_to_parameters)
-        self._parameters = np.random.randn(self._dimension) * initial_noise
+        self._parameters = numpy.random.randn(self._dimension) * initial_noise
         if self._dimension > 0:
-            self._prior_location = np.zeros(self._dimension)
-            self._prior_precision = np.eye(self._dimension) * prior
-            self._prior_normaliser = (-0.5 * self._dimension * np.log(2.0 * np.pi)
-                                      + 0.5 * np.log(np.linalg.det((self._prior_precision))))
+            self._prior_location = numpy.zeros(self._dimension)
+            self._prior_precision = numpy.eye(self._dimension) * prior
+            self._prior_normaliser = (-0.5 * self._dimension * numpy.log(2.0 * numpy.pi)
+                                      + 0.5 * numpy.log(numpy.linalg.det((self._prior_precision))))
         self._update_order = update_order
         if not self._update_order:
             self._update_order = FloodingProtocol(self._model)
@@ -53,14 +53,15 @@ class LearnMRFParameters(object):
     @property
     def parameters(self):
         """
-        Helper to update the potential tables given the parameters.
+        The current learned parameter values.
+        :returns: Dictionary where the key is a parameter name and the value its value.
         """
         parameter_dictionary = {}
         for i, value in enumerate(self._parameters):
             parameter_dictionary[self._index_to_parameters[i]] = value
         return parameter_dictionary
 
-    def evaluate_log_likelihood_gradient(self, evidence):
+    def log_likelihood_and_gradient(self, evidence):
         """
         Run inference on the model to find the log-likelihood of the model given evidence and its gradient with respect
             to the model parameters.
@@ -86,9 +87,10 @@ class LearnMRFParameters(object):
         derivative = empirical_expected_counts - model_expected_counts
 
         if self._dimension > 0:
-            derivative += -np.dot(self._prior_precision, (self._parameters - self._prior_location))
-            log_likelihood += -0.5 * np.dot(np.dot((self._parameters - self._prior_location).T,
-                                                   self._prior_precision), (self._parameters - self._prior_location))
+            derivative += -numpy.dot(self._prior_precision, (self._parameters - self._prior_location))
+            log_likelihood += -0.5 * numpy.dot(numpy.dot((self._parameters - self._prior_location).T,
+                                                         self._prior_precision),
+                                               (self._parameters - self._prior_location))
             log_likelihood += self._prior_normaliser
         return log_likelihood, derivative
 
@@ -97,72 +99,89 @@ class LearnMRFParameters(object):
         Iterate through factors and add parameter values.
         :returns: Vector of expected counts for each parameter.
         """
-        expected_counts = np.zeros(self._parameters.shape)
+        expected_counts = numpy.zeros(self._parameters.shape)
         for factor in self._model.factors:
-            factor_sum = np.sum(factor._data)
-            for parameter, value in zip(factor.parameters.flatten(), factor._data.flatten()):
+            factor_sum = numpy.sum(factor.data)
+            for parameter, value in zip(factor.parameters.flatten(), factor.data.flatten()):
                 if isinstance(parameter, str):
                     expected_counts[self._parameters_to_index[parameter]] += (value / factor_sum)  # * norm / normalizer
         return expected_counts
+
+    def _parameter_dictionary_to_vector(self, dictionary):
+        """
+        Helper to switch between a dictionary representation of parameter values to vector representation.
+        :param dictionary: A dictionary where the key is a parameter name and the value its value.
+        :returns: A numpy array.
+        """
+        return_vector = numpy.array(len(self._parameters_to_index))
+        for i in xrange(len(return_vector)):
+            return_vector[i] = dictionary[self._index_to_parameters[i]]
+        return return_vector
 
     def fit_without_gradient(self, evidence, initial_parameters=None):
         """
         Infer Gaussian approximation to the posterior using gradient-less BFGS optimization.
         :param evidence: Dictionary where the key is a variable name and the value the observed value of that variable.
-        :param initial_parameters: np.array of initial parameter values. If None then random values around 0 is used.
+        :param initial_parameters: numpy.array of initial parameter values. If None then random values around 0 is used.
         :return: The learner object.
         """
-        x0 = self._parameters
+        start_parameter_vector = self._parameters
         if initial_parameters is not None:
-            x0 = initial_parameters
+            start_parameter_vector = self._parameter_dictionary_to_vector(initial_parameters)
 
-        def f(x):
+        def objective_function(parameter_vector):
             """
             Function that is passed to the optimizer.
-            :param x: Parameter vector.
+            :param parameter_vector: Parameter vector.
             :returns: Negative log-likelihood.
             """
-            self._parameters = x
-            ll, _ = self.evaluate_log_likelihood_gradient(evidence)
-            self._iterations.append([ll, x])
-            return -ll
+            self._parameters = parameter_vector
+            log_likelihood, _ = self.log_likelihood_and_gradient(evidence)
+            self._iterations.append([log_likelihood, parameter_vector])
+            return -log_likelihood
 
-        self._optimizer_result = scipy.optimize.fmin_l_bfgs_b(f, x0, approx_grad=True, pgtol=10.0**-10)
+        self._optimizer_result = scipy.optimize.fmin_l_bfgs_b(objective_function,
+                                                              start_parameter_vector,
+                                                              approx_grad=True,
+                                                              pgtol=10.0**-10)
         return self
 
     def fit(self,
             evidence,
             initial_parameters=None,
             optimizer=scipy.optimize.fmin_l_bfgs_b,
-            optimizer_kwargs={'pgtol': 10.0**-10}):
+            optimizer_kwargs=None):
         """
         Fit the model to the data.
         :param evidence: Dictionary where the key is a variable name and the value the observed value of that variable.
-        :param initial_parameters: np.array of initial parameter values. If None then random values around 0 is used.
+        :param initial_parameters: numpy.array of initial parameter values. If None then random values around 0 is used.
         :param optimizer: The optimization function to use.
         :param optimizer_kwargs: Keyword arguments that are passed to the optimizer.
+        :returns: The learner object.
         """
-        x0 = self._parameters
+        initial_parameter_vector = self._parameters
         if initial_parameters is not None:
-            x0 = initial_parameters
+            initial_parameter_vector = self._parameter_dictionary_to_vector(initial_parameters)
+        if not optimizer_kwargs:
+            optimizer_kwargs = {'pgtol': 10.0**-10}
 
-        def f(x):
+        def objective_function(parameter_vector):
             """
             Function that is passed to the optimizer.
-            :param x: Parameter vector.
+            :param parameter_vector: Parameter vector.
             :returns: Negative log-likelihood. gradient.
             """
-            self._parameters = x
-            ll, grad = self.evaluate_log_likelihood_gradient(evidence)
-            self._iterations.append([ll, x])
-            return -ll, -grad
+            self._parameters = parameter_vector
+            log_likelihood, grad = self.log_likelihood_and_gradient(evidence)
+            self._iterations.append([log_likelihood, parameter_vector])
+            return -log_likelihood, -grad
 
-        self._optimizer_result = optimizer(f, x0, **optimizer_kwargs)
+        self._optimizer_result = optimizer(objective_function, initial_parameter_vector, **optimizer_kwargs)
         return self
 
     def result(self):
         """
-        Get the result object after learning.
+        Get the learning results.
         :returns: Log-likelihood, parameters that maximises the log-likelihood.
         """
         if self._optimizer_result:

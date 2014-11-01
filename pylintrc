@@ -5,3 +5,14 @@ max-line-length=160
 max-locals=17
 max-attributes=9
 min-public-methods=1
+
+[MESSAGES CONTROL]
+disable=locally-disabled,
+        fixme,
+        maybe-no-member,
+        star-args,
+        duplicate-code,
+        superfluous-parens
+
+[MISCELLANEOUS]
+notes=TODO,FIXME

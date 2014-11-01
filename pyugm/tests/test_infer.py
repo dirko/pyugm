@@ -1,3 +1,12 @@
+"""
+Tests the inference module.
+"""
+
+# pylint: disable=protected-access
+# pylint: disable=invalid-name
+# pylint: disable=missing-docstring
+# pylint: disable=too-many-public-methods
+
 import unittest
 
 from numpy.testing import assert_array_almost_equal
@@ -9,40 +18,10 @@ from pyugm.infer import FloodingProtocol
 from pyugm.infer import DistributeCollectProtocol
 from pyugm.infer import ExhaustiveEnumeration
 from pyugm.model import Model
+from pyugm.tests.test_utils import GraphTestCase
 
 
-def print_edge_set(edges):
-    for edge in list(edges):
-        print '({0}, {1})'.format(edge[0], edge[1])
-
-
-def assertEdgeEqual(self, edge1, edge2, msg=''):
-    if edge1 == edge2 or (edge1[1], edge1[0]) == edge2:
-        pass
-    else:
-        raise AssertionError('Edges not equal, {0}) != {1}: \n{2}'.format(edge1, edge2, msg))
-
-
-def assertEdgeSetsEqual(self, set1, set2, msg=''):
-    set1_copy = set(list(set1))
-    for edge in list(set1):
-        set1_copy.add((edge[1], edge[0]))
-    set2_copy = set(list(set2))
-    for edge in list(set2):
-        set2_copy.add((edge[1], edge[0]))
-    try:
-        self.assertSetEqual(set1_copy, set2_copy)
-    except AssertionError:
-        for edge in list(set1_copy):
-            if edge not in set2_copy:
-                print 'In 1 not in 2: ({0}, {1})'.format(edge[0], edge[1])
-        for edge in list(set2_copy):
-            if edge not in set1_copy:
-                print 'In 2 not in 1: ({0}, {1})'.format(edge[0], edge[1])
-        raise
-
-
-class TestLoopyBeliefUpdateInference(unittest.TestCase):
+class TestLoopyBeliefUpdateInference(GraphTestCase):
     def test_set_up_separators(self):
         a = DiscreteFactor([(0, 2), (1, 2), (2, 2)])
         b = DiscreteFactor([(2, 2), (3, 2), (3, 2)])

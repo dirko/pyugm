@@ -3,10 +3,8 @@ Module containing the Model class.
 """
 # License: BSD 3 clause
 
-import numpy
 
-
-class Model:
+class Model(object):
     """
     Class to contain the factors and their relationships.
     """
@@ -180,13 +178,4 @@ class Model:
         :param parameters: Dictionary where the key is a parameter name and the value the log value of the parameter.
         """
         for factor in self.factors:
-            original_shape = factor._data.shape
-            if factor.parameters is not None:
-                new_data = factor._data.reshape(-1, )
-                for i, parameter in enumerate(factor.parameters.reshape(-1, )):
-                    if isinstance(parameter, str):
-                        new_data[i] = numpy.exp(parameters[parameter])
-                    else:
-                        new_data[i] = parameter
-                factor._data = new_data.reshape(original_shape)
-                factor._log_normalizer = numpy.log(1.0)
+            factor.set_parameters(parameters)

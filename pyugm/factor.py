@@ -134,6 +134,22 @@ class DiscreteFactor(object):
         multiplier[tuple(array_position)] = 1
         self._data = self._data * multiplier * 1.0
 
+    def set_parameters(self, parameters):
+        """
+        Fill the potential with exponential of the parameters.
+        :param parameters: Dictionary where the key is a parameter name and the value the log value of the parameter.
+        """
+        original_shape = self._data.shape
+        if self.parameters is not None:
+            new_data = self._data.reshape(-1, )
+            for i, parameter in enumerate(self.parameters.reshape(-1, )):
+                if isinstance(parameter, str):
+                    new_data[i] = numpy.exp(parameters[parameter])
+                else:
+                    new_data[i] = parameter
+            self._data = new_data.reshape(original_shape)
+            self._log_normalizer = numpy.log(1.0)
+
     def rotate_other(self, other_factor):
         """
         Helper to rotate another factor's potential table so that the variables it shares with this factor are along

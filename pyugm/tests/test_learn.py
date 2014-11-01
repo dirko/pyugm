@@ -1,3 +1,13 @@
+"""
+Tests for the learning modules
+"""
+
+# pylint: disable=protected-access
+# pylint: disable=invalid-name
+# pylint: disable=missing-docstring
+# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-locals
+
 import unittest
 
 import numpy as np
@@ -12,6 +22,9 @@ from pyugm.learn import LearnMRFParameters
 
 
 class TestLearnMRFParameters(unittest.TestCase):
+    """
+    Tests for learning the discrete MRF's parameters.
+    """
     def test_get_log_likelihood(self):
         a = DiscreteFactor([1, 2], parameters=np.array([[1, 2.0], [3, 4]]))
         b = DiscreteFactor([2, 3], parameters=np.array([[3, 4.0], [5, 7]]))
@@ -32,7 +45,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         model = Model([a, b])
         evidence = {1: 0, 3: 1}
 
-        inference = LoopyBeliefUpdateInference(model)
+        _ = LoopyBeliefUpdateInference(model)
         exact_inference = ExhaustiveEnumeration(model)
         c = exact_inference.exhaustively_enumerate()
         print c
@@ -41,7 +54,7 @@ class TestLearnMRFParameters(unittest.TestCase):
 
         learner = LearnMRFParameters(model)
 
-        actual_log_likelihood, _ = learner.evaluate_log_likelihood_gradient(evidence)
+        actual_log_likelihood, _ = learner.log_likelihood_and_gradient(evidence)
         print actual_log_likelihood, np.log(0.18)
         self.assertAlmostEqual(actual_log_likelihood, np.log(0.18))
 
@@ -62,7 +75,7 @@ class TestLearnMRFParameters(unittest.TestCase):
 
         learner._parameters = parameters
 
-        actual_log_likelihood, _ = learner.evaluate_log_likelihood_gradient(evidence)
+        actual_log_likelihood, _ = learner.log_likelihood_and_gradient(evidence)
 
         prior_factor = D * (-0.5 * np.log((2.0 * np.pi * prior_sigma2)))
         print 'pn', prior_factor, D * -0.5 * np.log(prior_sigma2)
@@ -99,10 +112,10 @@ class TestLearnMRFParameters(unittest.TestCase):
             evidence = {'1': 0, '3': 1}
 
             learner._parameters = parameters
-            actual_log_likelihood1, actual_derivative1 = learner.evaluate_log_likelihood_gradient(evidence)
+            actual_log_likelihood1, actual_derivative1 = learner.log_likelihood_and_gradient(evidence)
 
             learner._parameters = parameters_plus_delta
-            actual_log_likelihood2, actual_derivative2 = learner.evaluate_log_likelihood_gradient(evidence)
+            actual_log_likelihood2, actual_derivative2 = learner.log_likelihood_and_gradient(evidence)
 
             expected_deriv = (actual_log_likelihood2 - actual_log_likelihood1) / delta  # * delta_vector / delta / delta
 
@@ -127,7 +140,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         model = Model(obs)
         evidence = dict((i, 0 if i < tc1 else 1) for i in xrange(tc1 + tc2))
         print 'evidence', evidence
-        print sorted(model.edges, key=lambda x: str(x))
+        print model.edges
 
         learner = LearnMRFParameters(model, prior=1.0)
 
@@ -160,7 +173,7 @@ class TestLearnMRFParameters(unittest.TestCase):
         model = Model(obs)
         evidence = dict((i, 0 if i < tc1 else 1) for i in xrange(tc1 + tc2))
         print 'evidence', evidence
-        print sorted(model.edges, key=lambda x: str(x))
+        print model.edges
 
         learner = LearnMRFParameters(model, prior=1.0)
 
@@ -186,7 +199,8 @@ class TestLearnMRFParameters(unittest.TestCase):
         self.assertAlmostEqual(actual_ans[0], expected_ans[1])
         assert_array_almost_equal(actual_ans[1], expected_ans[0], decimal=5)
 
-    def test_compare_gradientless_and_gradient_learning(self):
+    @staticmethod
+    def test_compare_gradientless_and_gradient_learning():
         seq = [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
         seqh = [1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1]
         factors = []

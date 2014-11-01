@@ -1,3 +1,11 @@
+"""
+Tests for the factor module.
+"""
+# pylint: disable=protected-access
+# pylint: disable=invalid-name
+# pylint: disable=missing-docstring
+# pylint: disable=too-many-public-methods
+
 import unittest
 
 from numpy.testing import assert_array_almost_equal
@@ -7,6 +15,9 @@ from pyugm.factor import DiscreteFactor
 
 
 class TestFactor(unittest.TestCase):
+    """
+    Tests for the factor class.
+    """
     def test_marginalize_small_edge(self):
         a = DiscreteFactor([(0, 2), (1, 2)])
         # a.data[0, 0] should equal 1 by default
@@ -329,7 +340,7 @@ class TestFactor(unittest.TestCase):
     def test_get_potential_slice(self):
         a = DiscreteFactor([(4, 2), (8, 3)], data=np.array(range(6)).reshape(2, 3))
         b = a.get_potential([(8, 0), (9, 1), (2, 4)])
-        assert_array_almost_equal(b, np.array([0, 3]))
+        self.assertIsNone(assert_array_almost_equal(b, np.array([0, 3])))
 
     def test_set_evidence_not_normalized_inplace(self):
         a = DiscreteFactor([(1, 2), (4, 3)], data=np.array(range(6)).reshape(2, 3))
