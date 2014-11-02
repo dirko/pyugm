@@ -12,6 +12,7 @@ import unittest
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal
+import scipy.optimize
 
 from pyugm.factor import DiscreteFactor
 from pyugm.infer import LoopyBeliefUpdateInference
@@ -156,11 +157,10 @@ class TestLearnMRFParameters(unittest.TestCase):
             lp += np.dot(x.T, np.array([c1, c2])) - (c1 + c2) * np.log(sum(np.exp(x)))
             return -lp[0, 0]
 
-        import scipy.optimize
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
-        actual_ans = learner.fit_without_gradient(evidence).result()
+        actual_ans = fit_without_gradient(learner, evidence).result()
         print actual_ans
         print expected_ans
         self.assertAlmostEqual(actual_ans[0], expected_ans[1])
@@ -189,7 +189,6 @@ class TestLearnMRFParameters(unittest.TestCase):
             lp += np.dot(x.T, np.array([c1, c2])) - (c1 + c2) * np.log(sum(np.exp(x)))
             return -lp[0, 0]
 
-        import scipy.optimize
         x0 = np.zeros(2)
         print 'zeros', x0
         expected_ans = scipy.optimize.fmin_l_bfgs_b(nlog_posterior, x0, approx_grad=True, pgtol=10.0**-10)
@@ -229,9 +228,40 @@ class TestLearnMRFParameters(unittest.TestCase):
         print
         update_order = DistributeCollectProtocol(model)
         learn = LearnMRFParameters(model, update_order=update_order)
-        learn.fit_without_gradient(evidence)
+        fit_without_gradient(learn, evidence)
         print learn._optimizer_result
         #print learn.iterations
         ans2 = learn._optimizer_result[:2]
         assert_array_almost_equal(ans1[1], ans2[1], decimal=4)
         assert_array_almost_equal(ans1[0], ans2[0], decimal=4)
+
+
+def fit_without_gradient(learner, evidence, initial_parameters=None):
+    """
+    Helper to test gradient.
+
+    Learn parameters using gradient-less BFGS optimization.
+    :param evidence: Dictionary where the key is a variable name and the value the observed value of that variable.
+    :param initial_parameters: numpy.array of initial parameter values. If None then random values around 0 is used.
+    :return: The learner object.
+    """
+    start_parameter_vector = learner._parameters
+    if initial_parameters is not None:
+        start_parameter_vector = learner._parameter_dictionary_to_vector(initial_parameters)
+
+    def objective_function(parameter_vector):
+        """
+        Function that is passed to the optimizer.
+        :param parameter_vector: Parameter vector.
+        :returns: Negative log-likelihood.
+        """
+        learner._parameters = parameter_vector
+        log_likelihood, _ = learner.log_likelihood_and_gradient(evidence)
+        learner._iterations.append([log_likelihood, parameter_vector])
+        return -log_likelihood
+
+    learner._optimizer_result = scipy.optimize.fmin_l_bfgs_b(objective_function,
+                                                             start_parameter_vector,
+                                                             approx_grad=True,
+                                                             pgtol=10.0**-10)
+    return learner

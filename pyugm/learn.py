@@ -118,34 +118,6 @@ class LearnMRFParameters(object):
             return_vector[i] = dictionary[self._index_to_parameters[i]]
         return return_vector
 
-    def fit_without_gradient(self, evidence, initial_parameters=None):
-        """
-        Infer Gaussian approximation to the posterior using gradient-less BFGS optimization.
-        :param evidence: Dictionary where the key is a variable name and the value the observed value of that variable.
-        :param initial_parameters: numpy.array of initial parameter values. If None then random values around 0 is used.
-        :return: The learner object.
-        """
-        start_parameter_vector = self._parameters
-        if initial_parameters is not None:
-            start_parameter_vector = self._parameter_dictionary_to_vector(initial_parameters)
-
-        def objective_function(parameter_vector):
-            """
-            Function that is passed to the optimizer.
-            :param parameter_vector: Parameter vector.
-            :returns: Negative log-likelihood.
-            """
-            self._parameters = parameter_vector
-            log_likelihood, _ = self.log_likelihood_and_gradient(evidence)
-            self._iterations.append([log_likelihood, parameter_vector])
-            return -log_likelihood
-
-        self._optimizer_result = scipy.optimize.fmin_l_bfgs_b(objective_function,
-                                                              start_parameter_vector,
-                                                              approx_grad=True,
-                                                              pgtol=10.0**-10)
-        return self
-
     def fit(self,
             evidence,
             initial_parameters=None,
