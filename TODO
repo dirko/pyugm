@@ -1,3 +1,6 @@
+## 4 November 2014
+Since the shape of data give the cardinalities, it can be omitted when specifying DiscreteFactor.
+
 ## 29 October 2014
 Tidy up stuff - examples, docs, run pylint, etc
 
