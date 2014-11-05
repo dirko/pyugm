@@ -14,3 +14,7 @@ So far, the following features are implemented for Markov networks:
 - Parameters are specified for each factor - allowing arbitrary parameter tying.
 - Learn parameters by maximising the log-posterior with LM-BFGS (scipy) or some other optimizer. A gaussian prior's
     parameters can be specified.
+
+## Example
+See http://nbviewer.ipython.org/github/dirko/pyugm/blob/master/examples/pyugm%20models.ipynb for a
+notebook showing how models can be specified.
