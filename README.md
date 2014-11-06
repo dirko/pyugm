@@ -16,5 +16,5 @@ So far, the following features are implemented for Markov networks:
     parameters can be specified.
 
 ## Example
-See http://nbviewer.ipython.org/github/dirko/pyugm/blob/master/examples/pyugm%20models.ipynb for a
+See http://nbviewer.ipython.org/github/dirko/pyugm/blob/master/examples/Introduction.ipynb for a
 notebook showing how models can be specified.
