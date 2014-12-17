@@ -162,6 +162,13 @@ class DiscreteFactor(object):
                           for axis in xrange(len(other_variable_order))]
         return other_factor.data.transpose(new_axis_order)
 
+    def normalize(self):
+        """
+        Update the potential table so that the entries sum to one.
+        """
+        self._log_normalizer = 0.0
+        self._data = self._data / numpy.sum(self._data)
+
     @property
     def log_normalizer(self):
         """
@@ -185,6 +192,14 @@ class DiscreteFactor(object):
         :returns: Potential table.
         """
         return numpy.log(self._data) + self._log_normalizer
+
+    @property
+    def normalized_data(self):
+        """
+        The potential table normalized so that the entries sum to one.
+        :returns: Potential table.
+        """
+        return self._data / numpy.sum(self._data)
 
     def __str__(self):
         """

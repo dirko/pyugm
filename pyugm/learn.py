@@ -6,11 +6,11 @@ Module containing classes to learn parameters from examples.
 import numpy
 import scipy.optimize
 
-from pyugm.infer import LoopyBeliefUpdateInference
+from pyugm.infer import TreeBeliefUpdateInference
 from pyugm.infer import FloodingProtocol
 
 
-class LearnMRFParameters(object):
+class LearnTreeMRFParameters(object):
     """
     Find a Gaussian approximation to the posterior given a model and prior.
     """
@@ -70,7 +70,7 @@ class LearnMRFParameters(object):
         """
         self._update_order.reset()
         self._model.set_parameters(self.parameters)
-        inference = LoopyBeliefUpdateInference(self._model)
+        inference = TreeBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
         log_z_total = self._model.factors[0].log_normalizer
         model_expected_counts = self._accumulate_expected_counts()
@@ -78,7 +78,7 @@ class LearnMRFParameters(object):
         self._update_order.reset()
         self._model.set_parameters(self.parameters)
         self._model.set_evidence(evidence=evidence)
-        inference = LoopyBeliefUpdateInference(self._model)
+        inference = TreeBeliefUpdateInference(self._model)
         inference.calibrate(update_order=self._update_order)
         log_z_observed = self._model.factors[0].log_normalizer
         empirical_expected_counts = self._accumulate_expected_counts()

@@ -34,7 +34,7 @@ class LoopyBeliefUpdateInference(object):
             self._separator_potential[edge] = separator_factor
             self._separator_potential[(edge[1], edge[0])] = separator_factor
 
-    def _update_belief(self, edge):
+    def _update_belief(self, edge, normalize=False):
         """
         Helper to update the beliefs along a single edge.
         :param edge: A tuple of two factors.
@@ -47,6 +47,8 @@ class LoopyBeliefUpdateInference(object):
         new_separator_divided = edge[0].marginalize(variables_to_keep)
         new_separator_divided.multiply(old_separator, divide=True)
         edge[1].multiply(new_separator_divided)
+        if normalize:
+            edge[1].normalize()
 
         reverse_edge = (edge[1], edge[0])
         self._separator_potential[edge] = new_separator
@@ -56,6 +58,30 @@ class LoopyBeliefUpdateInference(object):
         average_change_per_cell = abs(new_separator.data - new_separator.rotate_other(old_separator)).sum() / num_cells
 
         return average_change_per_cell
+
+    def calibrate(self, update_order=None):
+        """
+        Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
+        scheme.
+        :param update_order: A message update protocol. If `None`, `FloodingProtocol` is used.
+        """
+        if not update_order:
+            update_order = FloodingProtocol(self._model)
+
+        average_change_per_cell = 0
+        edge = update_order.next_edge(average_change_per_cell)
+        while edge:
+            average_change_per_cell = self._update_belief(edge, normalize=True)
+            edge = update_order.next_edge(average_change_per_cell)
+
+        return update_order.current_iteration_delta, update_order.total_iterations
+
+
+class TreeBeliefUpdateInference(LoopyBeliefUpdateInference):
+    """
+    An inference object to calibrate the potentials. Because exact inference is possible, we can easily find
+    the partition function in this case.
+    """
 
     def calibrate(self, update_order=None):
         """
@@ -258,3 +284,85 @@ class DistributeCollectProtocol(object):
             return return_edge
         else:
             return None
+
+
+class LoopyDistributeCollectProtocol(object):
+    """
+    Defines an update ordering where an edge is only updated if all other edges to the source node has already been
+    updated. At each iteration, a different 'tree' on the complete (loopy) graph is traversed.
+    """
+    def __init__(self, model, max_iterations=20, converge_delta=10**-10):
+        """
+        Constructor.
+        :param model: The model.
+        :param max_iterations: The number of time to update each edge.
+        :param converge_delta: If the potential table difference between the two iterations is less than this number,
+                               updates will stop.
+        """
+        self._model = model
+        self._edges = model.edges
+        self.current_iteration_delta = 0.0
+        self.total_iterations = 0
+        self._all_edges = []
+        self._counter = 0
+        self._max_iterations = max_iterations
+        self._converge_delta = converge_delta
+
+    def reset(self):
+        """
+        Reset the object.
+        """
+        self._counter = 0
+
+    def next_edge(self, last_update_change):
+        """
+        Get the next edge to update.
+        :param last_update_change: Change in factor-potential that the previous update caused.
+        :returns: An edge.
+        """
+        self.current_iteration_delta += last_update_change
+        if self._counter >= len(self._all_edges):
+            #if self.current_iteration_delta < self._converge_delta or self.total_iterations > self._max_iterations:
+            if self.total_iterations > self._max_iterations:
+                return None
+            self._build_tree()
+            self._counter = 0
+            self.current_iteration_delta = 0.0
+            self.total_iterations += 1
+        return_edge = self._all_edges[self._counter]
+        self._counter += 1
+        return return_edge
+
+    def _build_tree(self):
+        """
+        Helper to generate a new ordering
+        """
+        _to_visit = set()
+        _visited_factors = set()
+        _forward_edges = []
+        for sub_graph in self._model.disconnected_subgraphs:  # Roots
+            root_factor = list(sub_graph)[numpy.random.randint(len(sub_graph))]
+            _visited_factors.add(root_factor)
+            for edge in self._edges:
+                if edge[0] == root_factor:
+                    _to_visit.add(edge[1])
+                elif edge[1] == root_factor:
+                    _to_visit.add(edge[0])
+        while len(_to_visit) > 0:
+            next_factor = _to_visit.pop()
+            next_edge = None
+            for edge in self._edges:
+                if edge[0] == next_factor and edge[1] in _visited_factors:
+                    next_edge = (edge[1], edge[0])
+                    _visited_factors.add(next_factor)
+                elif edge[1] == next_factor and edge[0] in _visited_factors:
+                    next_edge = edge
+                    _visited_factors.add(next_factor)
+                elif edge[0] == next_factor and edge[1] not in _visited_factors:
+                    _to_visit.add(edge[1])
+                elif edge[1] == next_factor and edge[0] not in _visited_factors:
+                    _to_visit.add(edge[0])
+            _forward_edges.append(next_edge)
+
+        reversed_edges = [(edge[1], edge[0]) for edge in _forward_edges[::-1]]
+        self._all_edges = _forward_edges + reversed_edges

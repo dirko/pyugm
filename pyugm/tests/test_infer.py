@@ -14,20 +14,22 @@ import numpy as np
 
 from pyugm.factor import DiscreteFactor
 from pyugm.infer import LoopyBeliefUpdateInference
+from pyugm.infer import TreeBeliefUpdateInference
 from pyugm.infer import FloodingProtocol
 from pyugm.infer import DistributeCollectProtocol
+from pyugm.infer import LoopyDistributeCollectProtocol
 from pyugm.infer import ExhaustiveEnumeration
 from pyugm.model import Model
 from pyugm.tests.test_utils import GraphTestCase
 
 
-class TestLoopyBeliefUpdateInference(GraphTestCase):
+class TestTreeBeliefUpdateInference(GraphTestCase):
     def test_set_up_separators(self):
         a = DiscreteFactor([(0, 2), (1, 2), (2, 2)])
         b = DiscreteFactor([(2, 2), (3, 2), (3, 2)])
 
         model = Model([a, b])
-        inference = LoopyBeliefUpdateInference(model)
+        inference = TreeBeliefUpdateInference(model)
 
         s = DiscreteFactor([(2, 2)])
         print inference._separator_potential
@@ -44,7 +46,7 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         a = DiscreteFactor([0, 1])
         b = DiscreteFactor([1, 2])
         model = Model([a, b])
-        inference = LoopyBeliefUpdateInference(model)
+        inference = TreeBeliefUpdateInference(model)
         #                       0
         #                     0  1
         # Phi* = Sum_{0} 1 0 [ 1 1 ]  =  1 0 [ 2 ]
@@ -94,7 +96,7 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         for factor in model.factors:
             print 'before', factor, np.sum(factor.data)
 
-        inference = LoopyBeliefUpdateInference(model)
+        inference = TreeBeliefUpdateInference(model)
 
         exact_inference = ExhaustiveEnumeration(model)
         # do first because update_beliefs changes the factors
@@ -127,7 +129,7 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         #
         model = Model([a, b, c, d, e, f])
         print 'edges', model.edges
-        inference = LoopyBeliefUpdateInference(model)
+        inference = TreeBeliefUpdateInference(model)
 
         exact_inference = ExhaustiveEnumeration(model)
         # do first because update_beliefs changes the factors
@@ -176,8 +178,11 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         for var in model._variables_to_factors.keys():
             print var, model.get_marginals(var)[0].data, model.get_marginals(var)[0].log_normalizer
 
-        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(a.data))
-        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(c.data))
+        for variable in model.variables:
+            for factor in model.get_marginals(variable):
+                expected_table = exhaustive_answer.marginalize([variable])
+                actual_table = factor.marginalize([variable])
+                assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)
 
     def test_exhaustive_enumeration(self):
         a = DiscreteFactor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))
