@@ -179,3 +179,10 @@ class Model(object):
         """
         for factor in self.factors:
             factor.set_parameters(parameters)
+
+    @property
+    def variables(self):
+        """
+        The list of variables present in the model.
+        """
+        return [key for key, _ in self._variables_to_factors.items()]
