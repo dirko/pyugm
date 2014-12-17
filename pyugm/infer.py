@@ -168,13 +168,14 @@ class FloodingProtocol(object):
     """
     Defines an update ordering where updates are done in both directions for each edge in the cluster graph.
     """
-    def __init__(self, model, max_iterations=20, converge_delta=10**-10):
+    def __init__(self, model, max_iterations=20, converge_delta=10**-10, callback=None):
         """
         Constructor.
         :param model: The model.
         :param max_iterations: Maximum number of times to update each edge.
         :param converge_delta: Stop updates after the change in potential between two passes over all the
                         edges is less than `converge_delta`.
+        :callback: Function to call at the end of every iteration.
         """
         self.total_iterations = 0
         self.current_iteration_delta = 0
@@ -183,6 +184,7 @@ class FloodingProtocol(object):
         self._current_edge_index = 0
         self._max_iterations = max_iterations
         self._converge_delta = converge_delta
+        self._callback = callback
 
     def reset(self):
         """
@@ -212,7 +214,10 @@ class FloodingProtocol(object):
         self._current_edge_index += 1
         if self._current_edge_index / 2 >= len(self._edges):
             self._current_edge_index = 0
+            numpy.random.shuffle(self._edges)
             self.total_iterations += 1
+            if self._callback:
+                self._callback(self)
             if self.total_iterations > self._max_iterations or self.current_iteration_delta < self._converge_delta:
                 next_edge = None
             self.current_iteration_delta = 0.0
