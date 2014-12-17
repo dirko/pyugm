@@ -1,3 +1,6 @@
+## 17 December 2014
+Apparently you have to normalize the factors when the graph has loops.
+
 ## 4 November 2014
 Since the shape of data give the cardinalities, it can be omitted when specifying DiscreteFactor.
 

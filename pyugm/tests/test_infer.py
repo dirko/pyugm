@@ -144,6 +144,41 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(a.data))
         self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(d.data))
 
+    def test_loopy_distribute_collect(self):
+        a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]], dtype=np.float64))
+        b = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]], dtype=np.float64))
+        c = DiscreteFactor([2, 0], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
+        #
+        # a{0 1} - b{1 2}
+        #    \       /
+        #      c{2 0}
+        #
+        # a{0 1} - {0} - c{2 0}
+        #
+        #
+        #
+        #
+        model = Model([a, b, c])
+        inference = LoopyBeliefUpdateInference(model)
+
+        exact_inference = ExhaustiveEnumeration(model)
+        exhaustive_answer = exact_inference.exhaustively_enumerate()
+
+        update_order = LoopyDistributeCollectProtocol(model, max_iterations=40)
+        change = inference.calibrate(update_order=update_order)
+        print change
+
+        for factor in model.factors:
+            print factor, np.sum(factor.data), factor.log_normalizer
+        for var in model._variables_to_factors.keys():
+            print var, exhaustive_answer.marginalize([var]).data, exhaustive_answer.marginalize([var]).log_normalizer
+        print
+        for var in model._variables_to_factors.keys():
+            print var, model.get_marginals(var)[0].data, model.get_marginals(var)[0].log_normalizer
+
+        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(a.data))
+        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(c.data))
+
     def test_exhaustive_enumeration(self):
         a = DiscreteFactor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))
         b = DiscreteFactor([(0, 2), (2, 2)], data=np.array([[1, 2], [2, 1]]))
