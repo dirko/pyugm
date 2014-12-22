@@ -220,7 +220,8 @@ class FloodingProtocol(object):
                 self._callback(self)
             if self.total_iterations > self._max_iterations or self.current_iteration_delta < self._converge_delta:
                 next_edge = None
-            self.current_iteration_delta = 0.0
+            else:
+                self.current_iteration_delta = 0.0
         return next_edge
 
 
