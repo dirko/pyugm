@@ -3,6 +3,8 @@ Module containing the Model class.
 """
 # License: BSD 3 clause
 
+import numpy
+
 
 class Model(object):
     """
@@ -172,13 +174,13 @@ class Model(object):
         """
         return [factor.marginalize([variable]) for factor in self._variables_to_factors[variable]]
 
-    def set_parameters(self, parameters):
+    def set_parameters(self, parameters, noise_variance=0.0):
         """
         Fill factor potentials with exponential of the parameters.
         :param parameters: Dictionary where the key is a parameter name and the value the log value of the parameter.
         """
         for factor in self.factors:
-            factor.set_parameters(parameters)
+            factor.set_parameters(dict((key, value + numpy.random.randn() * noise_variance) for key, value in parameters.items()))
 
     @property
     def variables(self):

@@ -184,6 +184,32 @@ class TestTreeBeliefUpdateInference(GraphTestCase):
                 actual_table = factor.marginalize([variable])
                 assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)
 
+    def test_loopy_distribute_collect_grid(self):
+        a = DiscreteFactor([0, 1], data=np.random.randn(2, 2))
+        b = DiscreteFactor([1, 2, 3])
+        c = DiscreteFactor([3, 4, 5])
+        d = DiscreteFactor([5, 6])
+        e = DiscreteFactor([0, 7, 8])
+        f = DiscreteFactor([8, 2, 9, 10])
+        g = DiscreteFactor([10, 4, 11, 12])
+        h = DiscreteFactor([12, 13, 6])
+        i = DiscreteFactor([7, 14])
+        j = DiscreteFactor([14, 9, 15])
+        k = DiscreteFactor([15, 11, 16])
+        l = DiscreteFactor([16, 13])
+
+        # a{0 1} ---[1]--- b{1 2 3} ---[3]--- c{3 4 5} ---[5]--- d{5 6}
+        #   |                  |                   |                  |
+        #  [0]                [2]                 [4]                [6]
+        #   |                  |                   |                  |
+        # e{0 7 8} --[8]-- f{8 2 9 10} --[10]- g{10 4 11 12} -[12]- h{12 13 6}
+        #   |                  |                   |                  |
+        #  [7]                [9]                 [11]               [13]
+        #   |                  |                   |                  |
+        # i{7 14} --[14]--j{14 9 15} --[15]-- k{15 11 16} --[16]-- l{16 13}
+
+        model = Model([a, b, c, d, e, f, g, h, i, j, k, l])
+
     def test_exhaustive_enumeration(self):
         a = DiscreteFactor([(0, 2), (1, 3)], data=np.array([[1, 2, 3], [4, 5, 6]]))
         b = DiscreteFactor([(0, 2), (2, 2)], data=np.array([[1, 2], [2, 1]]))

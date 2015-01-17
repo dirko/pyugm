@@ -6,6 +6,7 @@ Module containing the inference routines.
 import numpy
 
 from pyugm.factor import DiscreteFactor
+from numba import jit
 
 
 class LoopyBeliefUpdateInference(object):
@@ -34,7 +35,7 @@ class LoopyBeliefUpdateInference(object):
             self._separator_potential[edge] = separator_factor
             self._separator_potential[(edge[1], edge[0])] = separator_factor
 
-    def _update_belief(self, edge, normalize=False):
+    def _update_belief(self, edge, normalize=False, damping=0.0):
         """
         Helper to update the beliefs along a single edge.
         :param edge: A tuple of two factors.
@@ -46,7 +47,7 @@ class LoopyBeliefUpdateInference(object):
         new_separator = edge[0].marginalize(variables_to_keep)
         new_separator_divided = edge[0].marginalize(variables_to_keep)
         new_separator_divided.multiply(old_separator, divide=True)
-        edge[1].multiply(new_separator_divided)
+        edge[1].multiply(new_separator_divided, damping=damping)
         if normalize:
             edge[1].normalize()
 
@@ -59,7 +60,7 @@ class LoopyBeliefUpdateInference(object):
 
         return average_change_per_cell
 
-    def calibrate(self, update_order=None):
+    def calibrate(self, update_order=None, damping=0.0):
         """
         Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
         scheme.
@@ -71,7 +72,7 @@ class LoopyBeliefUpdateInference(object):
         average_change_per_cell = 0
         edge = update_order.next_edge(average_change_per_cell)
         while edge:
-            average_change_per_cell = self._update_belief(edge, normalize=True)
+            average_change_per_cell = self._update_belief(edge, normalize=True, damping=damping)
             edge = update_order.next_edge(average_change_per_cell)
 
         return update_order.current_iteration_delta, update_order.total_iterations
@@ -135,6 +136,7 @@ class ExhaustiveEnumeration(object):
 
         instantiation = [[var[0], 0] for var in variables]
 
+        @jit
         def _tick_instantiation(i_list):
             """
             Helper to give the next instantiation given the previous one.
@@ -297,7 +299,7 @@ class LoopyDistributeCollectProtocol(object):
     Defines an update ordering where an edge is only updated if all other edges to the source node has already been
     updated. At each iteration, a different 'tree' on the complete (loopy) graph is traversed.
     """
-    def __init__(self, model, max_iterations=20, converge_delta=10**-10):
+    def __init__(self, model, max_iterations=20, converge_delta=10**-10, callback=None):
         """
         Constructor.
         :param model: The model.
@@ -306,19 +308,22 @@ class LoopyDistributeCollectProtocol(object):
                                updates will stop.
         """
         self._model = model
-        self._edges = model.edges
+        self._edges = list(model.edges)
         self.current_iteration_delta = 0.0
         self.total_iterations = 0
         self._all_edges = []
         self._counter = 0
         self._max_iterations = max_iterations
         self._converge_delta = converge_delta
+        self._callback = callback
+        self.reset()
 
     def reset(self):
         """
         Reset the object.
         """
         self._counter = 0
+        self._build_tree()
 
     def next_edge(self, last_update_change):
         """
@@ -329,6 +334,7 @@ class LoopyDistributeCollectProtocol(object):
         self.current_iteration_delta += last_update_change
         if self._counter >= len(self._all_edges):
             #if self.current_iteration_delta < self._converge_delta or self.total_iterations > self._max_iterations:
+            self._callback(self)
             if self.total_iterations > self._max_iterations:
                 return None
             self._build_tree()
@@ -346,6 +352,7 @@ class LoopyDistributeCollectProtocol(object):
         _to_visit = set()
         _visited_factors = set()
         _forward_edges = []
+        numpy.random.shuffle(self._edges)
         for sub_graph in self._model.disconnected_subgraphs:  # Roots
             root_factor = list(sub_graph)[numpy.random.randint(len(sub_graph))]
             _visited_factors.add(root_factor)

@@ -4,7 +4,7 @@ Module containing the factor classes.
 # License: BSD 3 clause
 
 import numpy
-from numba import jit  # void, f8, i1, b1, njit, jit
+from numba import jit, void, f8, i1, b1, njit, jit
 
 
 class DiscreteFactor(object):
@@ -72,7 +72,7 @@ class DiscreteFactor(object):
 
         return result_factor
 
-    def multiply(self, other_factor, divide=False):
+    def multiply(self, other_factor, divide=False, damping=0.0):
         """
         Multiply two factors.
         :param other_factor: The other factor to multiply into this factor.
@@ -99,7 +99,7 @@ class DiscreteFactor(object):
                          strides1, strides2,
                          card2,
                          assignment1, assignment2,
-                         variable1_to_2, divide)
+                         variable1_to_2, divide, damping)
         if divide:
             self._log_normalizer -= other_factor._log_normalizer
         else:
@@ -216,12 +216,12 @@ class DiscreteFactor(object):
         return self.__str__()
 
 
-@jit  # (void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1))
+@njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1, f8))
 def multiply_factors(data1, data2,
                      strides1, strides2,
                      cardinalities2,
                      assignment1, assignment2,
-                     variable1_to_2, divide):
+                     variable1_to_2, divide, damping):
     """
     Fast inplace factor multiplication.
 
@@ -235,6 +235,7 @@ def multiply_factors(data1, data2,
     :param variable1_to_2: Permutation array where `variable1_to_2[i]` gives the index in `data2` of the variable `i` in
         `data1`.
     :param divide: Boolean - divides `data2` by `data1` if True, otherwise multiplies.
+    :param damping: Damping factor - float.
     """
     # pylint: disable=too-many-arguments
     # TODO: This is still quite slow - think about moving the complete update code to infer.py and to C or Cython.
@@ -258,10 +259,11 @@ def multiply_factors(data1, data2,
             assignment2_index += strides2[var2_i] * assignment2[var2_i]
         # Multiply
         if not divide:
-            data2[assignment2_index] *= data1[assignment1_index]
+            data2[assignment2_index] = ((1 - damping) * data1[assignment1_index] * data2[assignment2_index] +
+                                        (damping * data2[assignment2_index]))
         else:
-            if data2[assignment2_index] > 0.0:
-                data2[assignment2_index] /= data1[assignment1_index]
+            if data2[assignment2_index] > 10e-300 and data1[assignment1_index] > 10e-300:
+                data2[assignment2_index] = data2[assignment2_index] / data1[assignment1_index]
 
         # Tick variable2 assignment
         assignment2[0] += 1
