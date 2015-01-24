@@ -333,9 +333,8 @@ class LoopyDistributeCollectProtocol(object):
         """
         self.current_iteration_delta += last_update_change
         if self._counter >= len(self._all_edges):
-            #if self.current_iteration_delta < self._converge_delta or self.total_iterations > self._max_iterations:
             self._callback(self)
-            if self.total_iterations > self._max_iterations:
+            if self.total_iterations > self._max_iterations or self.current_iteration_delta < self._converge_delta:
                 return None
             self._build_tree()
             self._counter = 0
