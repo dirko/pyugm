@@ -6,8 +6,8 @@ Module containing classes to learn parameters from examples.
 import numpy
 import scipy.optimize
 
-from pyugm.infer import TreeBeliefUpdateInference
-from pyugm.infer import FloodingProtocol
+from pyugm.infer_message import TreeBeliefUpdateInference
+from pyugm.infer_message import FloodingProtocol
 
 
 class LearnTreeMRFParameters(object):

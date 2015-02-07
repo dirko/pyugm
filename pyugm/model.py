@@ -166,6 +166,17 @@ class Model(object):
             for factor in self._variables_to_factors[variable]:
                 factor.set_evidence({variable: value})
 
+    def get_evidence(self):
+        """
+        Retrieves the evidence from each factor.
+        :returns: A dictionary where the key is a variable name and the value is the observed value.
+        """
+        evidence = {}
+        for factor in self.factors:
+            for variable, value in factor.evidence.items():
+                evidence[variable] = value  # overwrites possibly conflicting values
+        return evidence
+
     def get_marginals(self, variable):
         """
         Get marginals of all the factors in which a variable appears.

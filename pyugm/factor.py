@@ -4,7 +4,6 @@ Module containing the factor classes.
 # License: BSD 3 clause
 
 import numpy
-from numba import jit, void, f8, i1, b1, njit, jit
 
 
 class DiscreteFactor(object):
@@ -41,6 +40,7 @@ class DiscreteFactor(object):
         self.axis_to_variable = dict((i, variable[0])
                                      for i, variable in enumerate(variables))
         self.parameters = parameters
+        self.evidence = {}
         if data is not None:
             self._data = data
         else:
@@ -72,39 +72,6 @@ class DiscreteFactor(object):
 
         return result_factor
 
-    def multiply(self, other_factor, divide=False, damping=0.0):
-        """
-        Multiply two factors.
-        :param other_factor: The other factor to multiply into this factor.
-        :param divide: If true then the other factor is divided into this factor, otherwise multiplied.
-        """
-        # pylint: disable=protected-access
-        dim1 = len(other_factor.variables)
-        dim2 = len(self.variables)
-        strides1 = numpy.array(other_factor._data.strides, dtype=numpy.int8) / other_factor._data.itemsize
-        strides2 = numpy.array(self._data.strides, dtype=numpy.int8) / self._data.itemsize
-        card2 = numpy.array([self.cardinalities[self.axis_to_variable[axis]] for axis in xrange(dim2)],
-                            dtype=numpy.int8)
-        assignment1 = numpy.zeros(dim1, dtype=numpy.int8)
-        assignment2 = numpy.zeros(dim2, dtype=numpy.int8)
-        data1_flatshape = (numpy.prod(other_factor._data.shape),)
-        data2_flatshape = (numpy.prod(self._data.shape),)
-        variable1_to_2 = numpy.array([self.variable_to_axis[other_factor.axis_to_variable[ax1]]
-                                      for ax1 in xrange(dim1)], dtype=numpy.int8)
-        data1 = other_factor._data.view()
-        data2 = self._data.view()
-        data1.shape = data1_flatshape
-        data2.shape = data2_flatshape
-        multiply_factors(data1, data2,
-                         strides1, strides2,
-                         card2,
-                         assignment1, assignment2,
-                         variable1_to_2, divide, damping)
-        if divide:
-            self._log_normalizer -= other_factor._log_normalizer
-        else:
-            self._log_normalizer += other_factor._log_normalizer
-
     def get_potential(self, variable_list):
         """
         Return the entries in the table for the assignment of variables.
@@ -124,6 +91,7 @@ class DiscreteFactor(object):
         """
         # TODO: At the moment the factor is reduced by simply setting all unobserved values in the table to zero.
         #       Find a more efficient way of doing this.
+        self.evidence = evidence
         array_position = [slice(self.cardinalities[self.axis_to_variable[axis]])
                           for axis in xrange(len(self.variables))]
         for var, assignment in evidence.items():
@@ -214,62 +182,3 @@ class DiscreteFactor(object):
         :returns: String representation of the factor.
         """
         return self.__str__()
-
-
-@njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1, f8))
-def multiply_factors(data1, data2,
-                     strides1, strides2,
-                     cardinalities2,
-                     assignment1, assignment2,
-                     variable1_to_2, divide, damping):
-    """
-    Fast inplace factor multiplication.
-
-    :param data1: Array to multiply in.
-    :param data2: The larger array, containing all the variables in `data1` and also others.
-    :param strides1: Stride array for `data1`.
-    :param strides2: Stride array for `data2`.
-    :param cardinalities2: Cardinalities of variables in `data2`.
-    :param assignment1: A Numpy array with the same length as `data1`. Used as internal counter.
-    :param assignment2: A Numpy array with the same length as `data2`. Used as internal counter.
-    :param variable1_to_2: Permutation array where `variable1_to_2[i]` gives the index in `data2` of the variable `i` in
-        `data1`.
-    :param divide: Boolean - divides `data2` by `data1` if True, otherwise multiplies.
-    :param damping: Damping factor - float.
-    """
-    # pylint: disable=too-many-arguments
-    # TODO: This is still quite slow - think about moving the complete update code to infer.py and to C or Cython.
-    # Clear assignments
-    for var1_i in range(len(assignment1)):
-        assignment1[var1_i] = 0
-    for var2_i in range(len(assignment2)):
-        assignment2[var2_i] = 0
-    done = False
-
-    while not done:
-        # Assign first from second assignment
-        for var1_i in range(len(assignment1)):
-            assignment1[var1_i] = assignment2[variable1_to_2[var1_i]]
-        # Get indices in data
-        assignment1_index = 0
-        for var1_i in range(len(strides1)):
-            assignment1_index += strides1[var1_i] * assignment1[var1_i]
-        assignment2_index = 0
-        for var2_i in range(len(strides2)):
-            assignment2_index += strides2[var2_i] * assignment2[var2_i]
-        # Multiply
-        if not divide:
-            data2[assignment2_index] = ((1 - damping) * data1[assignment1_index] * data2[assignment2_index] +
-                                        (damping * data2[assignment2_index]))
-        else:
-            if data2[assignment2_index] > 10e-300 and data1[assignment1_index] > 10e-300:
-                data2[assignment2_index] = data2[assignment2_index] / data1[assignment1_index]
-
-        # Tick variable2 assignment
-        assignment2[0] += 1
-        for var2_i in range(len(assignment2) - 1):
-            if assignment2[var2_i] >= cardinalities2[var2_i]:
-                assignment2[var2_i] = 0
-                assignment2[var2_i + 1] += 1
-        if assignment2[-1] >= cardinalities2[-1]:
-            done = True

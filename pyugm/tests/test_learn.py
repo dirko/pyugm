@@ -15,9 +15,9 @@ from numpy.testing import assert_array_almost_equal
 import scipy.optimize
 
 from pyugm.factor import DiscreteFactor
-from pyugm.infer import LoopyBeliefUpdateInference
-from pyugm.infer import DistributeCollectProtocol
-from pyugm.infer import ExhaustiveEnumeration
+from pyugm.infer_message import LoopyBeliefUpdateInference
+from pyugm.infer_message import DistributeCollectProtocol
+from pyugm.infer_message import ExhaustiveEnumeration
 from pyugm.model import Model
 from pyugm.learn import LearnTreeMRFParameters
 
