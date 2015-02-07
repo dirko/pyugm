@@ -45,6 +45,10 @@ class LoopyBeliefUpdateInference(object):
 
         # Could probably be a bit faster
         new_separator = edge[0].marginalize(variables_to_keep)
+        print 'updating ', edge
+        print edge[0].data, edge[1].data
+        print 'variables to keep', variables_to_keep
+        print new_separator, new_separator.data
         new_separator_divided = edge[0].marginalize(variables_to_keep)
         multiply(new_separator_divided, old_separator, divide=True)
         multiply(edge[1], new_separator_divided, damping=damping)
