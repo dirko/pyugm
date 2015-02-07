@@ -50,8 +50,15 @@ class LoopyBeliefUpdateInference(object):
         print 'variables to keep', variables_to_keep
         print new_separator, new_separator.data
         new_separator_divided = edge[0].marginalize(variables_to_keep)
+        print 'marginalized'
+        print new_separator_divided, new_separator_divided.data
         multiply(new_separator_divided, old_separator, divide=True)
+        print 'divided'
+        print new_separator_divided, new_separator_divided.data
         multiply(edge[1], new_separator_divided, damping=damping)
+        print 'multiplied'
+        print new_separator_divided, new_separator_divided.data
+        print edge[1], edge[1].data
         if normalize:
             edge[1].normalize()
 
@@ -394,20 +401,27 @@ def multiply(this_factor, other_factor, divide=False, damping=0.0):
     # pylint: disable=protected-access
     dim1 = len(other_factor.variables)
     dim2 = len(this_factor.variables)
-    strides1 = numpy.array(other_factor._data.strides, dtype=numpy.int8) / other_factor._data.itemsize
-    strides2 = numpy.array(this_factor._data.strides, dtype=numpy.int8) / this_factor._data.itemsize
+    strides1 = numpy.array(other_factor._data.strides, dtype=numpy.int32) / other_factor._data.itemsize
+    strides2 = numpy.array(this_factor._data.strides, dtype=numpy.int32) / this_factor._data.itemsize
+    print 'strides', strides2, this_factor._data.strides, this_factor._data.itemsize, numpy.array(this_factor._data.strides, dtype=numpy.int32)
     card2 = numpy.array([this_factor.cardinalities[this_factor.axis_to_variable[axis]] for axis in xrange(dim2)],
-                        dtype=numpy.int8)
-    assignment1 = numpy.zeros(dim1, dtype=numpy.int8)
-    assignment2 = numpy.zeros(dim2, dtype=numpy.int8)
+                        dtype=numpy.int32)
+    assignment1 = numpy.zeros(dim1, dtype=numpy.int32)
+    assignment2 = numpy.zeros(dim2, dtype=numpy.int32)
     data1_flatshape = (numpy.prod(other_factor._data.shape),)
     data2_flatshape = (numpy.prod(this_factor._data.shape),)
     variable1_to_2 = numpy.array([this_factor.variable_to_axis[other_factor.axis_to_variable[ax1]]
-                                  for ax1 in xrange(dim1)], dtype=numpy.int8)
+                                  for ax1 in xrange(dim1)], dtype=numpy.int32)
     data1 = other_factor._data.view()
     data2 = this_factor._data.view()
     data1.shape = data1_flatshape
     data2.shape = data2_flatshape
+    print 'pre mult'
+    print other_factor.axis_to_variable, this_factor.axis_to_variable
+    print variable1_to_2
+    print other_factor._data.shape, this_factor._data.shape, this_factor._data.strides, this_factor._data.itemsize
+    print strides2
+    print
     _multiply_factors(data1, data2,
                      strides1, strides2,
                      card2,
@@ -420,7 +434,7 @@ def multiply(this_factor, other_factor, divide=False, damping=0.0):
     # pylint: enable=protected-access
 
 
-@njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1, f8))
+#@njit(void(f8[:], f8[:], i1[:], i1[:], i1[:], i1[:], i1[:], i1[:], b1, f8))
 def _multiply_factors(data1, data2,
                      strides1, strides2,
                      cardinalities2,
@@ -454,14 +468,17 @@ def _multiply_factors(data1, data2,
         # Assign first from second assignment
         for var1_i in range(len(assignment1)):
             assignment1[var1_i] = assignment2[variable1_to_2[var1_i]]
+        #print 'assignment', assignment1, assignment2
         # Get indices in data
         assignment1_index = 0
         for var1_i in range(len(strides1)):
+            print ' + a', var1_i, assignment1_index, strides1[var1_i]
             assignment1_index += strides1[var1_i] * assignment1[var1_i]
         assignment2_index = 0
         for var2_i in range(len(strides2)):
             assignment2_index += strides2[var2_i] * assignment2[var2_i]
         # Multiply
+        print 'assig index', assignment1, assignment2, assignment1_index, assignment2_index, data2[assignment2_index]
         if not divide:
             data2[assignment2_index] = ((1 - damping) * data1[assignment1_index] * data2[assignment2_index] +
                                         (damping * data2[assignment2_index]))
