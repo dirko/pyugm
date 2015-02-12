@@ -10,7 +10,7 @@ So far, the following features are implemented for Markov networks:
 
 - Specify a discrete model by listing factors. A cluster graph is then automatically constructed.
 - Run the loopy belief update algorithm to calibrate the model. The flooding protocol and distribute-collect update
-    orders are implemented, but custom orderings are easy to inject.
+    orders are implemented, but custom orderings are easy add.
 - Run a Gibbs sampler to calibrate the model.
 - Parameters are specified for each factor - allowing arbitrary parameter tying.
 - Learn parameters by maximising the log-posterior with LM-BFGS (scipy) or some other optimizer. A gaussian prior's
