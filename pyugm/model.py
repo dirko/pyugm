@@ -20,7 +20,7 @@ class Model(object):
         self.cardinalities = dict()  # variable name to int
         self.edges = set()  # pairs of factors
         self.disconnected_subgraphs = []  # list of sets of factors
-        self._variables_to_factors = dict()  # variable name to factor
+        self.variables_to_factors = dict()  # variable name to factor
 
         for factor in factor_list:
             self._add_factor(factor)
@@ -40,10 +40,10 @@ class Model(object):
             else:
                 self.cardinalities[variable[0]] = variable[1]
 
-            if variable[0] in self._variables_to_factors:
-                self._variables_to_factors[variable[0]].add(factor)
+            if variable[0] in self.variables_to_factors:
+                self.variables_to_factors[variable[0]].add(factor)
             else:
-                self._variables_to_factors[variable[0]] = {factor}
+                self.variables_to_factors[variable[0]] = {factor}
 
     def _build_graph(self):
         """
@@ -77,7 +77,7 @@ class Model(object):
                 unmarked_set.remove(edge[1])
 
         # Build graph by greedily adding the largest sepset factors to the above added node
-        for variable, factors in self._variables_to_factors.items():
+        for variable, factors in self.variables_to_factors.items():
             marked_factors = set()
             unmarked_factors = set(factors)
 
@@ -163,7 +163,7 @@ class Model(object):
             variable.
         """
         for variable, value in evidence.items():
-            for factor in self._variables_to_factors[variable]:
+            for factor in self.variables_to_factors[variable]:
                 factor.set_evidence({variable: value})
 
     def get_evidence(self):
@@ -183,7 +183,7 @@ class Model(object):
         :param variable: The variable.
         :returns: List of factors.
         """
-        return [factor.marginalize([variable]) for factor in self._variables_to_factors[variable]]
+        return [factor.marginalize([variable]) for factor in self.variables_to_factors[variable]]
 
     def set_parameters(self, parameters, noise_variance=0.0):
         """
@@ -198,4 +198,4 @@ class Model(object):
         """
         The list of variables present in the model.
         """
-        return [key for key, _ in self._variables_to_factors.items()]
+        return [key for key, _ in self.variables_to_factors.items()]

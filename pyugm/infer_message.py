@@ -6,7 +6,7 @@ Module containing the inference routines.
 import numpy
 
 from pyugm.factor import DiscreteFactor
-from numba import jit, void, f8, i4, b1, njit, jit
+from numba import jit, void, f8, i4, b1, njit
 
 
 class LoopyBeliefUpdateInference(object):
@@ -388,6 +388,7 @@ def multiply(this_factor, other_factor, divide=False, damping=0.0):
     :param divide: If true then the other factor is divided into this factor, otherwise multiplied.
     """
     # pylint: disable=protected-access
+    # pylint: disable=too-many-locals
     dim1 = len(other_factor.variables)
     dim2 = len(this_factor.variables)
     strides1 = numpy.array(other_factor._data.strides, dtype=numpy.int32) / other_factor._data.itemsize
@@ -405,23 +406,22 @@ def multiply(this_factor, other_factor, divide=False, damping=0.0):
     data1.shape = data1_flatshape
     data2.shape = data2_flatshape
     _multiply_factors(data1, data2,
-                     strides1, strides2,
-                     card2,
-                     assignment1, assignment2,
-                     variable1_to_2, divide, damping)
+                      strides1, strides2,
+                      card2,
+                      assignment1, assignment2,
+                      variable1_to_2, divide, damping)
     if divide:
         this_factor._log_normalizer -= other_factor._log_normalizer
     else:
         this_factor._log_normalizer += other_factor._log_normalizer
-    # pylint: enable=protected-access
 
 
 @njit(void(f8[:], f8[:], i4[:], i4[:], i4[:], i4[:], i4[:], i4[:], b1, f8))
 def _multiply_factors(data1, data2,
-                     strides1, strides2,
-                     cardinalities2,
-                     assignment1, assignment2,
-                     variable1_to_2, divide, damping):
+                      strides1, strides2,
+                      cardinalities2,
+                      assignment1, assignment2,
+                      variable1_to_2, divide, damping):
     """
     Fast inplace factor multiplication.
 

@@ -47,10 +47,10 @@ class TestGibbsSampling(unittest.TestCase):
 
         for factor in model.factors:
             print factor, np.sum(factor.data), factor.log_normalizer
-        for var in model._variables_to_factors.keys():
+        for var in model.variables_to_factors.keys():
             print var, exhaustive_answer.marginalize([var]).data, exhaustive_answer.marginalize([var]).log_normalizer
         print
-        for var in model._variables_to_factors.keys():
+        for var in model.variables_to_factors.keys():
             print var, model.get_marginals(var)[0].data, model.get_marginals(var)[0].log_normalizer
 
         for variable in model.variables:

@@ -317,7 +317,7 @@ class TestTreeBeliefUpdateInference(GraphTestCase):
         for factor in model.factors:
             self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(factor.data))
         self.assertAlmostEqual(exhaustive_answer.marginalize([7]).get_potential([(7, 1)]),
-                               list(model._variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
+                               list(model.variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
 
     def test_belief_update_larger_tree(self):
         a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]], dtype=np.float64))
@@ -351,12 +351,8 @@ class TestTreeBeliefUpdateInference(GraphTestCase):
         self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(d.data))
 
     def test_belief_update_long_tree(self):
-        #pair_template = np.array([['alpha', 'beta'], ['gamma', 'delta']])
         label_template = np.array([['same', 'different'],
                                    ['different', 'same']])
-        #obs_template = np.array([['oalpha', 'obeta'], ['ogamma', 'odelta']])
-        #observation_template = np.array([['obs_low', 'obs_high'],
-        #                                 ['obs_high', 'obs_low']])
         observation_template = np.array([['obs_low'] * 32,
                                          ['obs_high'] * 32])
         observation_template[0, 13:17] = 'obs_high'
@@ -364,27 +360,24 @@ class TestTreeBeliefUpdateInference(GraphTestCase):
         N = 2
         pairs = [DiscreteFactor([(i, 2), (i + 1, 2)], parameters=label_template) for i in xrange(N - 1)]
         obs = [DiscreteFactor([(i, 2), (i + N, 32)], parameters=observation_template) for i in xrange(N)]
-        repe = [ 16.,  16.,  14.,  13.,  15.,  16.,  14.,  13.,  15.,  16.,  15.,
-        13.,  14.,  16.,  16.,  15.,  13.,  13.,  14.,  14.,  13.,  14.,
-        14.,  14.,  14.,  14.,  14.,  14.,  14.,  14.,  14.,  14.,  14.,
-        14.,  14.,  14.,  14.,  14.,  14.,  14.,  14.,   9.,   4.,   4.,
-         4.,   4.,   5.,   3.,   2.,   3.,   2.,   3.,   3.,   3.,   3.,
-         3.,   3.,   3.,   3.,   4.,   4.,   5.,   5.,   5.]
-        #evidence = dict((i + N, 0 if repe[i % len(repe)] >= 13 and repe[i % len(repe)] < 17 else 1) for i in xrange(N))
-        evidence = dict((i + N, 0) for i in xrange(N))
+        repe = [16., 16., 14., 13., 15., 16., 14., 13., 15., 16., 15.,
+                13., 14., 16., 16., 15., 13., 13., 14., 14., 13., 14.,
+                14., 14., 14., 14., 14., 14., 14., 14., 14., 14., 14.,
+                14., 14., 14., 14., 14., 14., 14., 14., 9., 4., 4.,
+                4., 4., 5., 3., 2., 3., 2., 3., 3., 3., 3.,
+                3., 3., 3., 3., 4., 4., 5., 5., 5.]
+        evidence = dict((i + N, 0 if repe[i % len(repe)] >= 13 and repe[i % len(repe)] < 17 else 1) for i in xrange(N))
 
         model = Model(pairs + obs)
         parameters = {'same': 2.0, 'different': -1.0, 'obs_high': 0.0, 'obs_low': -0.0}
         model.set_parameters(parameters=parameters)
         model.set_evidence(evidence)
 
-        #inference = TreeBeliefUpdateInference(model)
         inference = LoopyBeliefUpdateInference(model)
 
         print 'enumerating'
 
         for i in xrange(N):
-            #expected_marginal = exhaustive_answer.marginalize([i])
             expected_marginal = model.get_marginals(i)[0]
             for actual_marginal in model.get_marginals(i):
                 print i, evidence[i + N], expected_marginal.normalized_data, actual_marginal.normalized_data, \
@@ -396,21 +389,19 @@ class TestTreeBeliefUpdateInference(GraphTestCase):
         exact_inference = ExhaustiveEnumeration(model)
         # do first because update_beliefs changes the factors
         exhaustive_answer = exact_inference.exhaustively_enumerate()
+
         def reporter(ordering):
             change = ordering.current_iteration_delta
             print ordering.total_iterations, change
 
         print 'bp'
-        #update_order = DistributeCollectProtocol(model)
         update_order = FloodingProtocol(model, max_iterations=4, callback=reporter)
         change = inference.calibrate(update_order=update_order)
         print 'change', change
 
-        #print np.sum(exhaustive_answer.data), np.sum(pairs[0].data)
-        #print exhaustive_answer.marginalize([4]).data, model.get_marginals(4)[0].data
+        print np.sum(exhaustive_answer.data), np.sum(pairs[0].data)
         for i in xrange(N):
             expected_marginal = exhaustive_answer.marginalize([i])
-            #expected_marginal = model.get_marginals(i)[0]
             for actual_marginal in model.get_marginals(i):
                 print i, evidence[i + N], expected_marginal.normalized_data, actual_marginal.normalized_data,\
                     sum(abs(expected_marginal.normalized_data - actual_marginal.normalized_data))
@@ -418,14 +409,10 @@ class TestTreeBeliefUpdateInference(GraphTestCase):
         for factor in model.factors:
             print factor, factor.data
 
-
         for i in xrange(N):
             expected_marginal = exhaustive_answer.marginalize([i])
-            #expected_marginal = model.get_marginals(i)[0]
             for actual_marginal in model.get_marginals(i):
                 assert_array_almost_equal(expected_marginal.normalized_data, actual_marginal.normalized_data)
-        #self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(pairs[0].data))
-        #self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(pairs[-1].data))
 
 
 class TestLoopyBeliefUpdateInference(GraphTestCase):
@@ -455,10 +442,10 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
 
         for factor in model.factors:
             print factor, np.sum(factor.data), factor.log_normalizer
-        for var in model._variables_to_factors.keys():
+        for var in model.variables_to_factors.keys():
             print var, exhaustive_answer.marginalize([var]).data, exhaustive_answer.marginalize([var]).log_normalizer
         print
-        for var in model._variables_to_factors.keys():
+        for var in model.variables_to_factors.keys():
             print var, model.get_marginals(var)[0].data, model.get_marginals(var)[0].log_normalizer
 
         for variable in model.variables:

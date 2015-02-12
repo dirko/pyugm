@@ -34,19 +34,19 @@ class GibbsSamplingInference(object):
         for sample in xrange(samples):
             if callback:
                 callback(sample, self.traces)
-            for variable, factors in self._model._variables_to_factors.items():
+            for variable, factors in self._model.variables_to_factors.items():
                 if variable not in evidence:
                     self.traces[variable].append(self._sample(variable, factors, self.traces, evidence))
 
         # Reset the factor potentials
         for factor in self._model.factors:
-            factor._data = numpy.zeros(factor._data.shape)
+            factor._data = numpy.zeros(factor.data.shape)
 
         # Add traces to factor tables
         for factor in self._model.factors:
             for i in xrange(burn_in, samples):
                 assignment = tuple([self.traces[variable][i] if variable in self.traces else evidence[variable]
-                                    for axis, variable in factor.axis_to_variable.items()])
+                                    for _, variable in factor.axis_to_variable.items()])
                 factor._data.__setitem__(assignment, factor._data.__getitem__(assignment) + 1)
             factor.normalize()
 
@@ -64,6 +64,7 @@ class GibbsSamplingInference(object):
             dist *= factor.get_potential(assignment_list)
         return sample_categorical(dist)
 
+
 @jit
 def sample_categorical(probability_table):
     """
@@ -72,8 +73,7 @@ def sample_categorical(probability_table):
     :returns: integer.
     """
     cumulative = probability_table.cumsum()
-    f = numpy.random.ranf() * cumulative[-1]
+    random_number = numpy.random.ranf() * cumulative[-1]
     for i, val in enumerate(cumulative):
-        if f < val:
+        if random_number < val:
             return i
-
