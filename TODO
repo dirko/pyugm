@@ -1,3 +1,7 @@
+## 12 February 2015
+Fixed a long standing bug with belief updates. Get Z approximation from model so we can learn some parameters in loopy
+graphs.
+
 ## 24 January 2015
 It seems that damping beliefs in a loopy graph is very useful, but not useful enough - especially for a grid.
 Therefore need to add a sampling/variational/etc inference class. Might go with Gibbs sampler first.

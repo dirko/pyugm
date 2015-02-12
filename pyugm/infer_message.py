@@ -91,7 +91,7 @@ class TreeBeliefUpdateInference(LoopyBeliefUpdateInference):
         :param update_order: A message update protocol. If `None`, `FloodingProtocol` is used.
         """
         if not update_order:
-            update_order = FloodingProtocol(self._model)
+            update_order = DistributeCollectProtocol(self._model)
 
         average_change_per_cell = 0
         edge = update_order.next_edge(average_change_per_cell)
