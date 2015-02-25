@@ -1,3 +1,9 @@
+## 25 February 2015
+Figuring out how to approximate Z if I already have approximate cluster beliefs - looks like just evaluating the
+factored energy functional at these beliefs. One problem with this is that we need the original potentials - which
+are destroyed because we're doing belief updates. So possibly add 'potential' and 'belief' tables to each factor. Other
+option is to keep potentials with the model/factors, and beliefs with the inference object.
+
 ## 12 February 2015
 Fixed a long standing bug with belief updates. Get Z approximation from model so we can learn some parameters in loopy
 graphs.
