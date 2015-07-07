@@ -197,14 +197,15 @@ class TestBeliefUpdateInference(GraphTestCase):
         change1, iterations1 = inference.calibrate(update_order2)
         print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
 
-        final_a = DiscreteFactor([0, 1])
-        final_a._data *= 2
-        final_b = DiscreteFactor([1, 2])
-        final_b._data *= 2
+        final_a_data = np.array([[2, 2],
+                                 [2, 2]], dtype='f64') / 8.0
+        final_b_data = np.array([[2, 2],
+                                 [2, 2]], dtype='f64') / 8.0
 
-        assert_array_almost_equal(a.data, final_a.data)
-        assert_array_almost_equal(b.data, final_b.data)
-        self.assertAlmostEqual(change1, 0, delta=10**-10)
+        belief_a = inference.beliefs[a]
+        assert_array_almost_equal(final_a_data, belief_a.normalized_data)
+        belief_b = inference.beliefs[b]
+        assert_array_almost_equal(final_b_data, belief_b.normalized_data)
 
     def test_update_beliefs_disconnected(self):
         a = DiscreteFactor([(1, 2), (2, 2)], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
@@ -220,7 +221,7 @@ class TestBeliefUpdateInference(GraphTestCase):
         inference = LoopyBeliefUpdateInference(model)
 
         exact_inference = ExhaustiveEnumeration(model)
-        # do first because update_beliefs changes the factors
+        # do first because update_beliefs changes the factors [NOTE: no longer true]
         exhaustive_answer = exact_inference.exhaustively_enumerate()
         print 'Exhaust', np.sum(exhaustive_answer.data)
 
@@ -231,10 +232,11 @@ class TestBeliefUpdateInference(GraphTestCase):
         for factor in model.factors:
             print factor, np.sum(factor.data)
 
-        for factor in model.factors:
-            self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(factor.data))
-        self.assertAlmostEqual(exhaustive_answer.marginalize([7]).get_potential([(7, 1)]),
-                               list(model.variables_to_factors[7])[0].marginalize([7]).get_potential([(7, 1)]))
+        for variable in model.variables:
+            marginal_beliefs = inference.get_marginals(variable)
+            true_marginal = exhaustive_answer.marginalize([variable])
+            for marginal in marginal_beliefs:
+                assert_array_almost_equal(true_marginal.normalized_data, marginal.normalized_data)
 
     def test_belief_update_larger_tree(self):
         a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]], dtype=np.float64))
@@ -253,7 +255,7 @@ class TestBeliefUpdateInference(GraphTestCase):
         inference = LoopyBeliefUpdateInference(model)
 
         exact_inference = ExhaustiveEnumeration(model)
-        # do first because update_beliefs changes the factors
+        # do first because update_beliefs changes the factors [NOTE: no longer true]
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
         print 'bp'
@@ -264,8 +266,11 @@ class TestBeliefUpdateInference(GraphTestCase):
         for factor in model.factors:
             print factor
 
-        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(a.data))
-        self.assertAlmostEqual(np.sum(exhaustive_answer.data), np.sum(d.data))
+        for variable in model.variables:
+            marginal_beliefs = inference.get_marginals(variable)
+            true_marginal = exhaustive_answer.marginalize([variable])
+            for marginal in marginal_beliefs:
+                assert_array_almost_equal(true_marginal.normalized_data, marginal.normalized_data)
 
     def test_belief_update_long_tree(self):
         label_template = np.array([['same', 'different'],

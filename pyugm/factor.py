@@ -52,7 +52,7 @@ class DiscreteFactor(object):
         """
         Marginalize a potential table.
         :param variables_to_keep: A list of variables to keep. All other variables in the factor are marginalized out.
-
+        :returns: A new factor.
         """
         axes = [self.variable_to_axis[own_variable_name]
                 for own_variable_name, _ in self.variables

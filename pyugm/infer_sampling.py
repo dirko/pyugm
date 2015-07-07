@@ -29,6 +29,7 @@ class GibbsSamplingInference(Inference):
         if initial_values:
             self.traces = {variable: [initial_value] for variable, initial_value in initial_values.items()}
         elif not self.traces:
+            # TODO: Only valid initialisation should be allowed.
             self.traces = {variable: [numpy.random.randint(0, self._model.cardinalities[variable])]
                            for variable in self._model.variables if variable not in evidence}
 
@@ -37,19 +38,20 @@ class GibbsSamplingInference(Inference):
                 callback(sample, self.traces)
             for variable, factors in self._model.variables_to_factors.items():
                 if variable not in evidence:
-                    self.traces[variable].append(self._sample(variable, factors, self.traces, evidence))
+                    beliefs = [self.beliefs[factor] for factor in factors]
+                    self.traces[variable].append(self._sample(variable, beliefs, self.traces, evidence))
 
         # Reset the factor potentials
-        for factor in self._model.factors:
-            factor._data = numpy.zeros(factor.data.shape)
+        for belief in self.beliefs.values():
+            belief._data = numpy.zeros(belief._data.shape)
 
         # Add traces to factor tables
-        for factor in self._model.factors:
+        for belief in self.beliefs.values():
             for i in xrange(burn_in, samples):
                 assignment = tuple([self.traces[variable][i] if variable in self.traces else evidence[variable]
-                                    for _, variable in factor.axis_to_variable.items()])
-                self.beliefs[factor]._data.__setitem__(assignment, factor._data.__getitem__(assignment) + 1)
-            self.beliefs[factor].normalize()
+                                    for _, variable in belief.axis_to_variable.items()])
+                belief._data.__setitem__(assignment, belief._data.__getitem__(assignment) + 1)
+            belief.normalize()
 
     def _sample(self, current_variable, factors, traces, evidence):
         """

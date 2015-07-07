@@ -22,7 +22,7 @@ from pyugm.model import Model
 from pyugm.learn import LearnMrfParameters
 
 
-class TestLearnTreeMRFParameters(unittest.TestCase):
+class TestLearnMrfParameters(unittest.TestCase):
     """
     Tests for learning the discrete MRF's parameters.
     """
