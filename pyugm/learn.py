@@ -6,11 +6,11 @@ Module containing classes to learn parameters from examples.
 import numpy
 import scipy.optimize
 
-from pyugm.infer_message import TreeBeliefUpdateInference
+from pyugm.infer_message import LoopyBeliefUpdateInference
 from pyugm.infer_message import FloodingProtocol
 
 
-class LearnTreeMRFParameters(object):
+class LearnMrfParameters(object):
     """
     Find a Gaussian approximation to the posterior given a model and prior.
     """
@@ -69,18 +69,18 @@ class LearnTreeMRFParameters(object):
         :returns: The log-likelihood and a vector of derivatives.
         """
         self._update_order.reset()
-        self._model.set_parameters(self.parameters)
-        inference = TreeBeliefUpdateInference(self._model)
+        inference = LoopyBeliefUpdateInference(self._model)
+        inference.set_parameters(self.parameters)
         inference.calibrate(update_order=self._update_order)
-        log_z_total = self._model.factors[0].log_normalizer
+        log_z_total = inference.partition_approximation()
         model_expected_counts = self._accumulate_expected_counts()
 
         self._update_order.reset()
-        self._model.set_parameters(self.parameters)
-        self._model.set_evidence(evidence=evidence)
-        inference = TreeBeliefUpdateInference(self._model)
+        inference = LoopyBeliefUpdateInference(self._model)
+        inference.set_parameters(self.parameters)
+        inference.set_evidence(evidence=evidence)
         inference.calibrate(update_order=self._update_order)
-        log_z_observed = self._model.factors[0].log_normalizer
+        log_z_observed = inference.partition_approximation()
         empirical_expected_counts = self._accumulate_expected_counts()
 
         log_likelihood = log_z_observed - log_z_total

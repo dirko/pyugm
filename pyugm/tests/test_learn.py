@@ -19,7 +19,7 @@ from pyugm.infer_message import LoopyBeliefUpdateInference
 from pyugm.infer_message import DistributeCollectProtocol
 from pyugm.infer_message import ExhaustiveEnumeration
 from pyugm.model import Model
-from pyugm.learn import LearnTreeMRFParameters
+from pyugm.learn import LearnMrfParameters
 
 
 class TestLearnTreeMRFParameters(unittest.TestCase):
@@ -53,7 +53,7 @@ class TestLearnTreeMRFParameters(unittest.TestCase):
         print c.data
         print c.get_potential(evidence.items())
 
-        learner = LearnTreeMRFParameters(model)
+        learner = LearnMrfParameters(model)
 
         actual_log_likelihood, _ = learner.log_likelihood_and_gradient(evidence)
         print actual_log_likelihood, np.log(0.18)
@@ -65,7 +65,7 @@ class TestLearnTreeMRFParameters(unittest.TestCase):
 
         model = Model([a, b])
         prior_sigma2 = 2.3
-        learner = LearnTreeMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
+        learner = LearnMrfParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
         D = 8
         parameters = np.zeros(D)
         parameter_out_of_order = [1, 2, 3, 4, 3, 4, 5, 7]
@@ -95,7 +95,7 @@ class TestLearnTreeMRFParameters(unittest.TestCase):
 
             model = Model([a, b, c])
             prior_sigma2 = 2.3
-            learner = LearnTreeMRFParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
+            learner = LearnMrfParameters(model, prior=1.0/(prior_sigma2 ** 1.0))
             D = 12
 
             delta_vector = np.zeros(D)
@@ -143,7 +143,7 @@ class TestLearnTreeMRFParameters(unittest.TestCase):
         print 'evidence', evidence
         print model.edges
 
-        learner = LearnTreeMRFParameters(model, prior=1.0)
+        learner = LearnMrfParameters(model, prior=1.0)
 
         def nlog_posterior(x):
             c1 = tc1
@@ -175,7 +175,7 @@ class TestLearnTreeMRFParameters(unittest.TestCase):
         print 'evidence', evidence
         print model.edges
 
-        learner = LearnTreeMRFParameters(model, prior=1.0)
+        learner = LearnMrfParameters(model, prior=1.0)
 
         def nlog_posterior(x):
             c1 = tc1
@@ -219,7 +219,7 @@ class TestLearnTreeMRFParameters(unittest.TestCase):
 
         model = Model(factors)
         update_order = DistributeCollectProtocol(model)
-        learn = LearnTreeMRFParameters(model, update_order=update_order)
+        learn = LearnMrfParameters(model, update_order=update_order)
         learn.fit(evidence)
         print learn._optimizer_result
         #print learn.iterations
@@ -227,7 +227,7 @@ class TestLearnTreeMRFParameters(unittest.TestCase):
 
         print
         update_order = DistributeCollectProtocol(model)
-        learn = LearnTreeMRFParameters(model, update_order=update_order)
+        learn = LearnMrfParameters(model, update_order=update_order)
         fit_without_gradient(learn, evidence)
         print learn._optimizer_result
         #print learn.iterations

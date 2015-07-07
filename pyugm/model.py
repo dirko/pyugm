@@ -156,43 +156,6 @@ class Model(object):
                             next_factor = None
                 self.disconnected_subgraphs.append(new_set)
 
-    def set_evidence(self, evidence):
-        """
-        Set the evidence in each of the factors contained in the model.
-        :param evidence: Dictionary where the key is a variable name and the value is the observed value of that
-            variable.
-        """
-        for variable, value in evidence.items():
-            for factor in self.variables_to_factors[variable]:
-                factor.set_evidence({variable: value})
-
-    def get_evidence(self):
-        """
-        Retrieves the evidence from each factor.
-        :returns: A dictionary where the key is a variable name and the value is the observed value.
-        """
-        evidence = {}
-        for factor in self.factors:
-            for variable, value in factor.evidence.items():
-                evidence[variable] = value  # overwrites possibly conflicting values
-        return evidence
-
-    def get_marginals(self, variable):
-        """
-        Get marginals of all the factors in which a variable appears.
-        :param variable: The variable.
-        :returns: List of factors.
-        """
-        return [factor.marginalize([variable]) for factor in self.variables_to_factors[variable]]
-
-    def set_parameters(self, parameters, noise_variance=0.0):
-        """
-        Fill factor potentials with exponential of the parameters.
-        :param parameters: Dictionary where the key is a parameter name and the value the log value of the parameter.
-        """
-        for factor in self.factors:
-            factor.set_parameters(dict((key, value + numpy.random.randn() * noise_variance) for key, value in parameters.items()))
-
     @property
     def variables(self):
         """

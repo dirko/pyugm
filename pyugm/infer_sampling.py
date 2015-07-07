@@ -5,9 +5,10 @@ Module containing the inference routines.
 
 import numpy
 from numba import jit
+from pyugm.infer import Inference
 
 
-class GibbsSamplingInference(object):
+class GibbsSamplingInference(Inference):
     """
     An inference object to calibrate the potentials.
     """
@@ -16,14 +17,14 @@ class GibbsSamplingInference(object):
         Constructor.
         :param model: The model.
         """
-        self._model = model
+        super(GibbsSamplingInference, self).__init__(model)
         self.traces = {}
 
     def calibrate(self, initial_values=None, samples=1000, burn_in=100, callback=None):
         """
         Calibrate all the factors in the model.
         """
-        evidence = self._model.get_evidence()
+        evidence = self.get_evidence()
 
         if initial_values:
             self.traces = {variable: [initial_value] for variable, initial_value in initial_values.items()}
@@ -47,8 +48,8 @@ class GibbsSamplingInference(object):
             for i in xrange(burn_in, samples):
                 assignment = tuple([self.traces[variable][i] if variable in self.traces else evidence[variable]
                                     for _, variable in factor.axis_to_variable.items()])
-                factor._data.__setitem__(assignment, factor._data.__getitem__(assignment) + 1)
-            factor.normalize()
+                self.beliefs[factor]._data.__setitem__(assignment, factor._data.__getitem__(assignment) + 1)
+            self.beliefs[factor].normalize()
 
     def _sample(self, current_variable, factors, traces, evidence):
         """

@@ -1,3 +1,8 @@
+## 5 July 2015
+Move everything that mutates the model out to an Inference object - the model shouldn't change.
+Maybe it will be possible to re-use previous inference results with a slightly changed model?
+Differentiate between factors and beliefs. Beliefs are mutable factors.
+
 ## 25 February 2015
 Figuring out how to approximate Z if I already have approximate cluster beliefs - looks like just evaluating the
 factored energy functional at these beliefs. One problem with this is that we need the original potentials - which

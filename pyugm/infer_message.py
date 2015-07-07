@@ -5,11 +5,12 @@ Module containing the inference routines.
 
 import numpy
 
-from pyugm.factor import DiscreteFactor
+from pyugm.factor import DiscreteBelief
+from pyugm.infer import Inference
 from numba import jit, void, f8, i4, b1, njit
 
 
-class LoopyBeliefUpdateInference(object):
+class LoopyBeliefUpdateInference(Inference):
     """
     An inference object to calibrate the potentials.
     """
@@ -18,8 +19,8 @@ class LoopyBeliefUpdateInference(object):
         Constructor.
         :param model: The model.
         """
+        super(LoopyBeliefUpdateInference, self).__init__(model)
         self._separator_potential = dict()  # edge to pairs of separator potentials
-        self._model = model
         self._set_up_belief_update()
 
     def _set_up_belief_update(self):
@@ -31,11 +32,11 @@ class LoopyBeliefUpdateInference(object):
             sepset = factor1.variable_set.intersection(factor2.variable_set)
             separator_variables = [(variable, factor1.cardinalities[variable]) for variable in list(sepset)]
             # NOTE: will want to set this up more generically for other kinds of factors
-            separator_factor = DiscreteFactor(separator_variables)
-            self._separator_potential[edge] = separator_factor
-            self._separator_potential[(edge[1], edge[0])] = separator_factor
+            separator_belief = DiscreteBelief(variables=separator_variables)
+            self._separator_potential[edge] = separator_belief
+            self._separator_potential[(edge[1], edge[0])] = separator_belief
 
-    def _update_belief(self, edge, normalize=False, damping=0.0):
+    def _update_belief(self, edge, damping=0.0):
         """
         Helper to update the beliefs along a single edge.
         :param edge: A tuple of two factors.
@@ -43,13 +44,15 @@ class LoopyBeliefUpdateInference(object):
         old_separator = self._separator_potential[edge]
         variables_to_keep = old_separator.variable_set
 
+        belief0 = self.beliefs[edge[0]]
+        belief1 = self.beliefs[edge[1]]
+
         # Could probably be a bit faster
-        new_separator = edge[0].marginalize(variables_to_keep)
-        new_separator_divided = edge[0].marginalize(variables_to_keep)
+        new_separator = belief0.marginalize(variables_to_keep)
+        new_separator_divided = belief0.marginalize(variables_to_keep)
         multiply(new_separator_divided, old_separator, divide=True)
-        multiply(edge[1], new_separator_divided, damping=damping)
-        if normalize:
-            edge[1].normalize()
+        multiply(belief1, new_separator_divided, damping=damping)
+        belief1.normalize()
 
         reverse_edge = (edge[1], edge[0])
         self._separator_potential[edge] = new_separator
@@ -72,42 +75,8 @@ class LoopyBeliefUpdateInference(object):
         average_change_per_cell = 0
         edge = update_order.next_edge(average_change_per_cell)
         while edge:
-            average_change_per_cell = self._update_belief(edge, normalize=True, damping=damping)
+            average_change_per_cell = self._update_belief(edge, damping=damping)
             edge = update_order.next_edge(average_change_per_cell)
-
-        return update_order.current_iteration_delta, update_order.total_iterations
-
-
-class TreeBeliefUpdateInference(LoopyBeliefUpdateInference):
-    """
-    An inference object to calibrate the potentials. Because exact inference is possible, we can easily find
-    the partition function in this case.
-    """
-
-    def calibrate(self, update_order=None):
-        """
-        Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
-        scheme.
-        :param update_order: A message update protocol. If `None`, `FloodingProtocol` is used.
-        """
-        if not update_order:
-            update_order = DistributeCollectProtocol(self._model)
-
-        average_change_per_cell = 0
-        edge = update_order.next_edge(average_change_per_cell)
-        while edge:
-            average_change_per_cell = self._update_belief(edge)
-            edge = update_order.next_edge(average_change_per_cell)
-
-        # Find normaliser
-        total_z = 0.0
-        for island in self._model.disconnected_subgraphs:
-            total_z += list(island)[0].log_normalizer
-        # Multiply so each factor has the same normaliser
-        for island in self._model.disconnected_subgraphs:
-            island_z = list(island)[0].log_normalizer
-            for factor in list(island):
-                factor._log_normalizer += (total_z - island_z)
 
         return update_order.current_iteration_delta, update_order.total_iterations
 
@@ -162,7 +131,7 @@ class ExhaustiveEnumeration(object):
                 data[tuple(var[1] for var in instantiation)] *= potential_value
             done, instantiation = _tick_instantiation(instantiation)
 
-        new_factor = DiscreteFactor(variables, data=data)
+        new_factor = DiscreteBelief(variables=variables, data=data)
         return new_factor
 
 
@@ -410,10 +379,11 @@ def multiply(this_factor, other_factor, divide=False, damping=0.0):
                       card2,
                       assignment1, assignment2,
                       variable1_to_2, divide, damping)
-    if divide:
-        this_factor._log_normalizer -= other_factor._log_normalizer
-    else:
-        this_factor._log_normalizer += other_factor._log_normalizer
+    #if divide:
+    #    this_factor._log_normalizer -= other_factor._log_normalizer
+    #else:
+    #    print 'kaas', this_factor._log_normalizer , other_factor._log_normalizer
+    #    this_factor._log_normalizer += other_factor._log_normalizer
 
 
 @njit(void(f8[:], f8[:], i4[:], i4[:], i4[:], i4[:], i4[:], i4[:], b1, f8))

@@ -29,8 +29,9 @@ class TestGibbsSampling(unittest.TestCase):
         sampler = GibbsSamplingInference(model)
         sampler.calibrate(samples=100000)
 
-        print a.data
-        assert_array_almost_equal(a.data, potential_data, decimal=2)
+        for belief in sampler.get_marginals(1):
+            print belief.data
+            assert_array_almost_equal(belief.data, potential_data, decimal=2)
 
     def test_sample_loopy(self):
         a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]], dtype=np.float64))
@@ -46,15 +47,15 @@ class TestGibbsSampling(unittest.TestCase):
         inference.calibrate(samples=10000)
 
         for factor in model.factors:
-            print factor, np.sum(factor.data), factor.log_normalizer
+            print factor, np.sum(factor.data)
         for var in model.variables_to_factors.keys():
-            print var, exhaustive_answer.marginalize([var]).data, exhaustive_answer.marginalize([var]).log_normalizer
+            print var, exhaustive_answer.marginalize([var]).data
         print
         for var in model.variables_to_factors.keys():
-            print var, model.get_marginals(var)[0].data, model.get_marginals(var)[0].log_normalizer
+            print var, inference.get_marginals(var)[0].data
 
         for variable in model.variables:
-            for factor in model.get_marginals(variable):
+            for factor in inference.get_marginals(variable):
                 expected_table = exhaustive_answer.marginalize([variable])
                 actual_table = factor.marginalize([variable])
                 assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)
@@ -65,8 +66,8 @@ class TestGibbsSampling(unittest.TestCase):
         c = DiscreteFactor([2, 0], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
 
         model = Model([a, b, c])
-        model.set_evidence({0: 0})
         inference = GibbsSamplingInference(model)
+        inference.set_evidence({0: 0})
 
         exact_inference = ExhaustiveEnumeration(model)
         exhaustive_answer = exact_inference.exhaustively_enumerate()
@@ -74,7 +75,7 @@ class TestGibbsSampling(unittest.TestCase):
         inference.calibrate(samples=10000)
 
         for variable in model.variables:
-            for factor in model.get_marginals(variable):
+            for factor in inference.get_marginals(variable):
                 expected_table = exhaustive_answer.marginalize([variable])
                 actual_table = factor.marginalize([variable])
                 assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)

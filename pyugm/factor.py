@@ -1,5 +1,5 @@
 """
-Module containing the factor classes.
+Module containing the factor and belief classes.
 """
 # License: BSD 3 clause
 
@@ -8,17 +8,17 @@ import numpy
 
 class DiscreteFactor(object):
     """
-    A factor containing only discrete variables.
+    A factor containing only discrete variables. Factors are immutable and basically a container for a probability table
+    and its metadata.
     """
 
-    def __init__(self, variables, data=None, log_normalizer=0.0, parameters=None):
+    def __init__(self, variables, data=None, parameters=None):
         """
         Constructor.
 
         :param variables: A list of (variable_name, cardinality) tuples, where variable_name is a string or int.
             If only a list of names is provided, cardinalities are assumed to be 2.
         :param data: ndarray of factor potentials.
-        :param log_normalizer: The log of the factor with which the whole potential is multiplied.
         :param parameters: ndarray of parameter names (strings or integers). Must be the same shape as the potential
             table.
         """
@@ -40,13 +40,13 @@ class DiscreteFactor(object):
         self.axis_to_variable = dict((i, variable[0])
                                      for i, variable in enumerate(variables))
         self.parameters = parameters
-        self.evidence = {}
         if data is not None:
-            self._data = data
+            if data.dtype == 'float64':
+                self._data = data
+            else:
+                self._data = data.astype('float64')
         else:
             self._data = numpy.ones(tuple(variable[1] for variable in variables))
-
-        self._log_normalizer = log_normalizer
 
     def marginalize(self, variables_to_keep):
         """
@@ -65,10 +65,8 @@ class DiscreteFactor(object):
         else:  # Edge case where the original array is returned instead of a copy
             result_data = numpy.copy(self._data)
 
-        result_log_norm = numpy.log(result_data.sum())
-        result_data = result_data / numpy.exp(result_log_norm)
-        total_log_norm = self._log_normalizer + result_log_norm
-        result_factor = DiscreteFactor(result_variables, result_data, log_normalizer=total_log_norm)
+        result_data = result_data
+        result_factor = DiscreteFactor(result_variables, result_data)
 
         return result_factor
 
@@ -82,7 +80,79 @@ class DiscreteFactor(object):
         for var, assignment in variable_list:
             if var in self.cardinalities:
                 array_position[self.variable_to_axis[var]] = assignment
-        return self._data[tuple(array_position)] * numpy.exp(self._log_normalizer)
+        return self._data[tuple(array_position)]
+
+    def rotate_other(self, other_factor):
+        """
+        Helper to rotate another factor's potential table so that the variables it shares with this factor are along
+        the same axes.
+        :param other_factor: The other factor.
+        """
+        other_variable_order = [other_factor.axis_to_variable[other_axis]
+                                for other_axis in xrange(len(other_factor.data.shape))]
+        new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
+                          for axis in xrange(len(other_variable_order))]
+        return other_factor.data.transpose(new_axis_order)
+
+    @property
+    def data(self):
+        """
+        The normalized factor potentials.
+        :returns: Potential table.
+        """
+        return self._data
+
+    @property
+    def log_data(self):
+        """
+        The log of the normalized factor potentials.
+        :returns: Potential table.
+        """
+        return numpy.log(self._data)
+
+    @property
+    def normalized_data(self):
+        """
+        The potential table normalized so that the entries sum to one.
+        :returns: Potential table.
+        """
+        return self._data / numpy.sum(self._data)
+
+    def __str__(self):
+        """
+        For debugging, a factor is represented by its variables.
+        :returns: String representation of the factor.
+        """
+        return 'F{' + ', '.join(str(var) for var, card in self.variables) + '}'
+
+    def __repr__(self):
+        """
+        For debugging, the factor is represented by its variables.
+        :returns: String representation of the factor.
+        """
+        return self.__str__()
+
+
+class DiscreteBelief(DiscreteFactor):
+    """
+    A factor containing only discrete variables. Beliefs are mutable and contains the current belief about
+    its random variables and metadata.
+    """
+
+    def __init__(self, factor=None, variables=None, data=None, parameters=None):
+        """
+        Constructor.
+
+        :param factor: A factor to use to initialize the belief.
+        """
+        if factor:
+            super(DiscreteBelief, self).__init__(factor.variables,
+                                                 factor.data.copy(),
+                                                 factor.parameters)
+        else:
+            super(DiscreteBelief, self).__init__(variables, data, parameters)
+
+        self.evidence = {}
 
     def set_evidence(self, evidence):
         """
@@ -116,69 +186,9 @@ class DiscreteFactor(object):
                 else:
                     new_data[i] = parameter
             self._data = new_data.reshape(original_shape)
-            self._log_normalizer = numpy.log(1.0)
-
-    def rotate_other(self, other_factor):
-        """
-        Helper to rotate another factor's potential table so that the variables it shares with this factor are along
-        the same axes.
-        :param other_factor: The other factor.
-        """
-        other_variable_order = [other_factor.axis_to_variable[other_axis]
-                                for other_axis in xrange(len(other_factor.data.shape))]
-        new_axis_order = [other_variable_order.index(self.axis_to_variable[axis])
-                          for axis in xrange(len(other_variable_order))]
-        return other_factor.data.transpose(new_axis_order)
 
     def normalize(self):
         """
         Update the potential table so that the entries sum to one.
         """
-        self._log_normalizer = 0.0
         self._data = self._data / numpy.sum(self._data)
-
-    @property
-    def log_normalizer(self):
-        """
-        The log of the normalizing factor for the potential.
-        :returns: The log value.
-        """
-        return numpy.log(numpy.sum(self._data)) + self._log_normalizer
-
-    @property
-    def data(self):
-        """
-        The normalized factor potentials.
-        :returns: Potential table.
-        """
-        return self._data * numpy.exp(self._log_normalizer)
-
-    @property
-    def log_data(self):
-        """
-        The log of the normalized factor potentials.
-        :returns: Potential table.
-        """
-        return numpy.log(self._data) + self._log_normalizer
-
-    @property
-    def normalized_data(self):
-        """
-        The potential table normalized so that the entries sum to one.
-        :returns: Potential table.
-        """
-        return self._data / numpy.sum(self._data)
-
-    def __str__(self):
-        """
-        For debugging, a factor is represented by its variables.
-        :returns: String representation of the factor.
-        """
-        return 'F{' + ', '.join(str(var) for var, card in self.variables) + '}'
-
-    def __repr__(self):
-        """
-        For debugging, the factor is represented by its variables.
-        :returns: String representation of the factor.
-        """
-        return self.__str__()

@@ -97,37 +97,6 @@ class TestModel(GraphTestCase):
         print_edge_set(model.edges)
         self._assert_edge_sets_equal(model.edges, expected_edges)
 
-    @staticmethod
-    def test_set_evidence():
-        a = DiscreteFactor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2)))
-        b = DiscreteFactor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2)))
-        model = Model([a, b])
-        evidence = {2: 1, 4: 0}
-        model.set_evidence(evidence)
-
-        c = DiscreteFactor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2)))
-        c.set_evidence(evidence)
-        d = DiscreteFactor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2)))
-        d.set_evidence(evidence)
-
-        assert_array_almost_equal(c._data, model.factors[0].data)
-        assert_array_almost_equal(d._data, model.factors[1].data)
-
-    @staticmethod
-    def test_set_parameters():
-        a = DiscreteFactor([1, 2], parameters=np.array([[1, 2], ['a', 0.0]], dtype=object))
-        b = DiscreteFactor([2, 3], parameters=np.array([['b', 'c'], ['d', 'a']]))
-        model = Model([a, b])
-        print a.parameters
-        new_parameters = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
-        model.set_parameters(new_parameters)
-
-        c = DiscreteFactor([1, 2], np.array([1, 2, np.exp(1), 0]).reshape((2, 2)))
-        d = DiscreteFactor([2, 3], np.array([np.exp(2), np.exp(3), np.exp(4), np.exp(1)]).reshape((2, 2)))
-
-        assert_array_almost_equal(c._data, model.factors[0].data)
-        assert_array_almost_equal(d._data, model.factors[1].data)
-
 
 if __name__ == '__main__':
     unittest.main()
