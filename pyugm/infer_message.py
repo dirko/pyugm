@@ -70,19 +70,19 @@ class ExhaustiveEnumeration(object):
     """
     A test inference object to build the complete potential table.
     """
-    def __init__(self, model):
+    def __init__(self, inference):
         """
         Constructor.
-        :param model: The model.
+        :param inference: The model.
         """
-        self._model = model
+        self._inference = inference
 
     def exhaustively_enumerate(self):
         """
         Compute the complete probability table by enumerating all variable instantiations.
         :returns: A factor of all the variables in the original model.
         """
-        variables = [(key, value) for key, value in self._model.cardinalities.items()]
+        variables = [(key, value) for key, value in self._inference._model.cardinalities.items()]
         table_shape = [cardinality for _, cardinality in variables]
         table_size = numpy.prod(table_shape)
         if table_size > 10**7:
@@ -111,8 +111,8 @@ class ExhaustiveEnumeration(object):
         data = numpy.ones(table_shape)
         done = False
         while not done:
-            for factor in self._model.factors:
-                potential_value = factor.get_potential([tuple(var) for var in instantiation])
+            for belief in self._inference.beliefs.values():
+                potential_value = belief.get_potential([tuple(var) for var in instantiation])
                 data[tuple(var[1] for var in instantiation)] *= potential_value
             done, instantiation = _tick_instantiation(instantiation)
 

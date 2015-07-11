@@ -13,6 +13,7 @@ from numpy.testing import assert_array_almost_equal
 import numpy as np
 
 from pyugm.factor import DiscreteFactor, DiscreteBelief
+from pyugm.infer import Inference
 from pyugm.infer_message import LoopyBeliefUpdateInference
 from pyugm.infer_message import FloodingProtocol
 from pyugm.infer_message import DistributeCollectProtocol
@@ -220,8 +221,8 @@ class TestBeliefUpdateInference(GraphTestCase):
 
         inference = LoopyBeliefUpdateInference(model)
 
-        exact_inference = ExhaustiveEnumeration(model)
-        # do first because update_beliefs changes the factors [NOTE: no longer true]
+        exact_inference = ExhaustiveEnumeration(inference)
+        # do first because update_beliefs changes the factors
         exhaustive_answer = exact_inference.exhaustively_enumerate()
         print 'Exhaust', np.sum(exhaustive_answer.data)
 
@@ -257,8 +258,8 @@ class TestBeliefUpdateInference(GraphTestCase):
         print 'edges', model.edges
         inference = LoopyBeliefUpdateInference(model)
 
-        exact_inference = ExhaustiveEnumeration(model)
-        # do first because update_beliefs changes the factors [NOTE: no longer true]
+        exact_inference = ExhaustiveEnumeration(inference)
+        # do first because update_beliefs changes the factors
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
         print 'bp'
@@ -314,7 +315,7 @@ class TestBeliefUpdateInference(GraphTestCase):
         for factor in model.factors:
             print factor, factor.data
         print '-' * 10
-        exact_inference = ExhaustiveEnumeration(model)
+        exact_inference = ExhaustiveEnumeration(inference)
         # do first because update_beliefs changes the factors
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
@@ -364,7 +365,7 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         model = Model([a, b, c])
         inference = LoopyBeliefUpdateInference(model)
 
-        exact_inference = ExhaustiveEnumeration(model)
+        exact_inference = ExhaustiveEnumeration(inference)
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
         update_order = LoopyDistributeCollectProtocol(model, max_iterations=40)
@@ -386,7 +387,7 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
                 assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)
 
         expected_ln_Z = np.log(exhaustive_answer.data.sum())
-        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation())
+        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation(), places=1)
 
     def test_loopy_distribute_collect_grid(self):
         a = DiscreteFactor([0, 1], data=np.random.randn(2, 2))
@@ -433,7 +434,8 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         # 1 2 1 | 6x1=6
 
         model = Model([a, b])
-        exact_inference = ExhaustiveEnumeration(model)
+        inference = Inference(model)
+        exact_inference = ExhaustiveEnumeration(inference)
         c = exact_inference.exhaustively_enumerate()
 
         d = DiscreteFactor([(0, 2), (1, 3), (2, 2)])

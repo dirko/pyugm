@@ -41,7 +41,7 @@ class TestGibbsSampling(unittest.TestCase):
         model = Model([a, b, c])
         inference = GibbsSamplingInference(model)
 
-        exact_inference = ExhaustiveEnumeration(model)
+        exact_inference = ExhaustiveEnumeration(inference)
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
         inference.calibrate(samples=10000)
@@ -74,11 +74,7 @@ class TestGibbsSampling(unittest.TestCase):
         inference = GibbsSamplingInference(model)
         inference.set_evidence({0: 0})
 
-        ae = DiscreteFactor([0, 1], data=np.array([[1, 2], [0, 0]], dtype=np.float64))
-        be = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]], dtype=np.float64))
-        ce = DiscreteFactor([2, 0], data=np.array([[1, 0], [3, 0]], dtype=np.float64))
-        emodel = Model([ae, be, ce])
-        exact_inference = ExhaustiveEnumeration(emodel)
+        exact_inference = ExhaustiveEnumeration(inference)
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
         inference.calibrate(samples=10000)
@@ -90,7 +86,7 @@ class TestGibbsSampling(unittest.TestCase):
                 assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)
 
         expected_ln_Z = np.log(exhaustive_answer.data.sum())
-        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation())
+        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation(), places=3)
 
     def test_sample_categorical(self):
         counts = np.array([0, 0, 0.0])

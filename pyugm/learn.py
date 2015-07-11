@@ -73,7 +73,7 @@ class LearnMrfParameters(object):
         inference.set_parameters(self.parameters)
         inference.calibrate(update_order=self._update_order)
         log_z_total = inference.partition_approximation()
-        model_expected_counts = self._accumulate_expected_counts()
+        model_expected_counts = self._accumulate_expected_counts(inference)
 
         self._update_order.reset()
         inference = LoopyBeliefUpdateInference(self._model)
@@ -81,7 +81,7 @@ class LearnMrfParameters(object):
         inference.set_evidence(evidence=evidence)
         inference.calibrate(update_order=self._update_order)
         log_z_observed = inference.partition_approximation()
-        empirical_expected_counts = self._accumulate_expected_counts()
+        empirical_expected_counts = self._accumulate_expected_counts(inference)
 
         log_likelihood = log_z_observed - log_z_total
         derivative = empirical_expected_counts - model_expected_counts
@@ -94,15 +94,15 @@ class LearnMrfParameters(object):
             log_likelihood += self._prior_normaliser
         return log_likelihood, derivative
 
-    def _accumulate_expected_counts(self):
+    def _accumulate_expected_counts(self, inference):
         """
-        Iterate through factors and add parameter values.
+        Iterate through beliefs and add parameter values.
         :returns: Vector of expected counts for each parameter.
         """
         expected_counts = numpy.zeros(self._parameters.shape)
-        for factor in self._model.factors:
-            factor_sum = numpy.sum(factor.data)
-            for parameter, value in zip(factor.parameters.flatten(), factor.data.flatten()):
+        for belief in inference.beliefs.values():
+            factor_sum = numpy.sum(belief.data)
+            for parameter, value in zip(belief.parameters.flatten(), belief.data.flatten()):
                 if isinstance(parameter, str):
                     expected_counts[self._parameters_to_index[parameter]] += (value / factor_sum)  # * norm / normalizer
         return expected_counts

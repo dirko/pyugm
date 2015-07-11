@@ -52,6 +52,13 @@ class GibbsSamplingInference(Inference):
                                     for _, variable in belief.axis_to_variable.items()])
                 belief._data.__setitem__(assignment, belief._data.__getitem__(assignment) + 1)
             belief.normalize()
+        # And to separator beliefs
+        for belief in self._separator_potential.values():
+            for i in xrange(burn_in, samples):
+                assignment = tuple([self.traces[variable][i] if variable in self.traces else evidence[variable]
+                                    for _, variable in belief.axis_to_variable.items()])
+                belief._data.__setitem__(assignment, belief._data.__getitem__(assignment) + 1)
+            belief.normalize()
 
     def _sample(self, current_variable, factors, traces, evidence):
         """

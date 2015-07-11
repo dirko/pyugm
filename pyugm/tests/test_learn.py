@@ -46,8 +46,8 @@ class TestLearnMrfParameters(unittest.TestCase):
         model = Model([a, b])
         evidence = {1: 0, 3: 1}
 
-        _ = LoopyBeliefUpdateInference(model)
-        exact_inference = ExhaustiveEnumeration(model)
+        inference = LoopyBeliefUpdateInference(model)
+        exact_inference = ExhaustiveEnumeration(inference)
         c = exact_inference.exhaustively_enumerate()
         print c
         print c.data
@@ -88,7 +88,7 @@ class TestLearnMrfParameters(unittest.TestCase):
     def test_evaluate_derivative(self):
         D = 8
         delta = 10.0**-10
-        for variable_index in range(D):
+        for variable_index in range(1, D):
             a = DiscreteFactor(['1', '2'], parameters=np.array([['a', 'b'], ['c', 'd']]))
             b = DiscreteFactor(['2', '3'], parameters=np.array([['e', 'f'], ['g', 'h']]))
             c = DiscreteFactor(['3', '4'], parameters=np.array([['i', 'j'], ['k', 'l']]))
