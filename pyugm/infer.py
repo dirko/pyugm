@@ -21,6 +21,7 @@ class Inference(object):
         self.parameters = None
         self._separator_potential = dict()  # edge to pairs of separator potentials
         self._set_up_separators()
+        self._original_beliefs = None  # The beliefs just before inference started
 
     def _set_up_separators(self):
         """
@@ -87,11 +88,8 @@ class Inference(object):
             reduced_factor.set_evidence(self.get_evidence())
 
             energy += (numpy.log(reduced_factor.data + 10.0**-20) * belief.normalized_data).sum() + self._entropy(belief)
-            print factor, belief, energy, (numpy.log(factor.data) * belief.data).sum(),\
-                (numpy.log(reduced_factor.data + 10.0**-20) * belief.data).sum(), self._entropy(belief)
         for separator_belief in set(self._separator_potential.values()):
             energy -= self._entropy(separator_belief)
-            print factor, belief, energy
         return energy
 
     @staticmethod

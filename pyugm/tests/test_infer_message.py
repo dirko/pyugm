@@ -324,7 +324,7 @@ class TestBeliefUpdateInference(GraphTestCase):
             print ordering.total_iterations, change
 
         print 'bp'
-        update_order = FloodingProtocol(model, max_iterations=4, callback=reporter)
+        update_order = FloodingProtocol(model, max_iterations=4)
         change = inference.calibrate(update_order=update_order)
         print 'change', change
 

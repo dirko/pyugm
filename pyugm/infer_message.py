@@ -48,7 +48,7 @@ class LoopyBeliefUpdateInference(Inference):
 
         return average_change_per_cell
 
-    def calibrate(self, update_order=None, damping=0.0):
+    def calibrate(self, update_order=None, damping=0.0, callback=None):
         """
         Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
         scheme.
@@ -59,11 +59,16 @@ class LoopyBeliefUpdateInference(Inference):
 
         average_change_per_cell = 0
         edge = update_order.next_edge(average_change_per_cell)
+        previous_total_iterations = update_order.total_iterations
         while edge:
             average_change_per_cell = self._update_belief(edge, damping=damping)
+            if callback:
+                if update_order.total_iterations > previous_total_iterations:
+                    previous_total_iterations = update_order.total_iterations
+                    callback(self, update_order)
             edge = update_order.next_edge(average_change_per_cell)
 
-        return update_order.current_iteration_delta, update_order.total_iterations
+        return update_order.last_iteration_delta, update_order.total_iterations
 
 
 class ExhaustiveEnumeration(object):
@@ -124,30 +129,29 @@ class FloodingProtocol(object):
     """
     Defines an update ordering where updates are done in both directions for each edge in the cluster graph.
     """
-    def __init__(self, model, max_iterations=20, converge_delta=10**-10, callback=None):
+    def __init__(self, model, max_iterations=20, converge_delta=10**-10):
         """
         Constructor.
         :param model: The model.
         :param max_iterations: Maximum number of times to update each edge.
         :param converge_delta: Stop updates after the change in potential between two passes over all the
                         edges is less than `converge_delta`.
-        :callback: Function to call at the end of every iteration.
         """
         self.total_iterations = 0
-        self.current_iteration_delta = 0
+        self._current_iteration_delta = 0
+        self.last_iteration_delta = 0
         self._model = model
         self._edges = list(model.edges)
         self._current_edge_index = 0
         self._max_iterations = max_iterations
         self._converge_delta = converge_delta
-        self._callback = callback
 
     def reset(self):
         """
         Reset the object.
         """
         self.total_iterations = 0
-        self.current_iteration_delta = 0
+        self._current_iteration_delta = 0
         self._edges = list(self._model.edges)
         self._current_edge_index = 0
 
@@ -158,7 +162,7 @@ class FloodingProtocol(object):
                         convergence.
         :returns: An edge.
         """
-        self.current_iteration_delta += last_update_change
+        self._current_iteration_delta += last_update_change
         if self._edges:
             next_edge = self._edges[self._current_edge_index / 2]
         else:
@@ -172,12 +176,11 @@ class FloodingProtocol(object):
             self._current_edge_index = 0
             numpy.random.shuffle(self._edges)
             self.total_iterations += 1
-            if self._callback:
-                self._callback(self)
-            if self.total_iterations > self._max_iterations or self.current_iteration_delta < self._converge_delta:
+            if self.total_iterations > self._max_iterations or self._current_iteration_delta < self._converge_delta:
                 next_edge = None
             else:
-                self.current_iteration_delta = 0.0
+                self.last_iteration_delta = self._current_iteration_delta
+                self._current_iteration_delta = 0.0
         return next_edge
 
 
@@ -196,7 +199,7 @@ class DistributeCollectProtocol(object):
         self._to_visit = set()
         self._visited_factors = set()
         self._forward_edges = []
-        self.current_iteration_delta = 0.0
+        self.last_iteration_delta = 0.0
         self.total_iterations = 0
         for sub_graph in self._model.disconnected_subgraphs:  # Roots
             root_factor = list(sub_graph)[0]
@@ -239,7 +242,7 @@ class DistributeCollectProtocol(object):
         :param last_update_change: Change in factor-potential that the previous update caused.
         :returns: An edge.
         """
-        self.current_iteration_delta += last_update_change
+        self.last_iteration_delta += last_update_change
         if self._counter < len(self._all_edges):
             return_edge = self._all_edges[self._counter]
             self._counter += 1
@@ -253,7 +256,7 @@ class LoopyDistributeCollectProtocol(object):
     Defines an update ordering where an edge is only updated if all other edges to the source node has already been
     updated. At each iteration, a different 'tree' on the complete (loopy) graph is traversed.
     """
-    def __init__(self, model, max_iterations=20, converge_delta=10**-10, callback=None):
+    def __init__(self, model, max_iterations=20, converge_delta=10**-10):
         """
         Constructor.
         :param model: The model.
@@ -263,13 +266,13 @@ class LoopyDistributeCollectProtocol(object):
         """
         self._model = model
         self._edges = list(model.edges)
-        self.current_iteration_delta = 0.0
+        self._current_iteration_delta = 0.0
+        self.last_iteration_delta = 0.0
         self.total_iterations = 0
         self._all_edges = []
         self._counter = 0
         self._max_iterations = max_iterations
         self._converge_delta = converge_delta
-        self._callback = callback
         self.reset()
 
     def reset(self):
@@ -285,15 +288,14 @@ class LoopyDistributeCollectProtocol(object):
         :param last_update_change: Change in factor-potential that the previous update caused.
         :returns: An edge.
         """
-        self.current_iteration_delta += last_update_change
+        self._current_iteration_delta += last_update_change
         if self._counter >= len(self._all_edges):
-            if self._callback:
-                self._callback(self)
-            if self.total_iterations > self._max_iterations or self.current_iteration_delta < self._converge_delta:
+            if self.total_iterations > self._max_iterations or self._current_iteration_delta < self._converge_delta:
                 return None
             self._build_tree()
             self._counter = 0
-            self.current_iteration_delta = 0.0
+            self.last_iteration_delta = self._current_iteration_delta
+            self._current_iteration_delta = 0.0
             self.total_iterations += 1
         return_edge = self._all_edges[self._counter]
         self._counter += 1
