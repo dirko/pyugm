@@ -89,6 +89,9 @@ class TestGibbsSampling(unittest.TestCase):
                 actual_table = factor.marginalize([variable])
                 assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)
 
+        expected_ln_Z = np.log(exhaustive_answer.data.sum())
+        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation())
+
     def test_sample_categorical(self):
         counts = np.array([0, 0, 0.0])
         sample_distribution = np.array([10, 59, 1.0])

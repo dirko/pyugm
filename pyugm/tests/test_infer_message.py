@@ -238,6 +238,9 @@ class TestBeliefUpdateInference(GraphTestCase):
             for marginal in marginal_beliefs:
                 assert_array_almost_equal(true_marginal.normalized_data, marginal.normalized_data)
 
+        expected_ln_Z = np.log(exhaustive_answer.data.sum())
+        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation())
+
     def test_belief_update_larger_tree(self):
         a = DiscreteFactor([0, 1], data=np.array([[1, 2], [2, 2]], dtype=np.float64))
         b = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]], dtype=np.float64))
@@ -271,6 +274,9 @@ class TestBeliefUpdateInference(GraphTestCase):
             true_marginal = exhaustive_answer.marginalize([variable])
             for marginal in marginal_beliefs:
                 assert_array_almost_equal(true_marginal.normalized_data, marginal.normalized_data)
+
+        expected_ln_Z = np.log(exhaustive_answer.data.sum())
+        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation())
 
     def test_belief_update_long_tree(self):
         label_template = np.array([['same', 'different'],
@@ -328,13 +334,16 @@ class TestBeliefUpdateInference(GraphTestCase):
                 print i, evidence[i + N], expected_marginal.normalized_data, actual_marginal.normalized_data,\
                     sum(abs(expected_marginal.normalized_data - actual_marginal.normalized_data))
         print '-' * 20
-        for factor in model.factors:
+        for factor in inference.beliefs.values():
             print factor, factor.data
 
         for i in xrange(N):
             expected_marginal = exhaustive_answer.marginalize([i])
             for actual_marginal in inference.get_marginals(i):
                 assert_array_almost_equal(expected_marginal.normalized_data, actual_marginal.normalized_data)
+
+        expected_ln_Z = np.log(exhaustive_answer.data.sum())
+        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation())
 
 
 class TestLoopyBeliefUpdateInference(GraphTestCase):
@@ -375,6 +384,9 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
                 expected_table = exhaustive_answer.marginalize([variable])
                 actual_table = factor.marginalize([variable])
                 assert_array_almost_equal(expected_table.normalized_data, actual_table.normalized_data, decimal=2)
+
+        expected_ln_Z = np.log(exhaustive_answer.data.sum())
+        self.assertAlmostEqual(expected_ln_Z, inference.partition_approximation())
 
     def test_loopy_distribute_collect_grid(self):
         a = DiscreteFactor([0, 1], data=np.random.randn(2, 2))

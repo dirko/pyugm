@@ -20,21 +20,6 @@ class LoopyBeliefUpdateInference(Inference):
         :param model: The model.
         """
         super(LoopyBeliefUpdateInference, self).__init__(model)
-        self._separator_potential = dict()  # edge to pairs of separator potentials
-        self._set_up_belief_update()
-
-    def _set_up_belief_update(self):
-        """
-        Helper to initialise separator potentials to 1.
-        """
-        for edge in list(self._model.edges):
-            factor1, factor2 = edge
-            sepset = factor1.variable_set.intersection(factor2.variable_set)
-            separator_variables = [(variable, factor1.cardinalities[variable]) for variable in list(sepset)]
-            # NOTE: will want to set this up more generically for other kinds of factors
-            separator_belief = DiscreteBelief(variables=separator_variables)
-            self._separator_potential[edge] = separator_belief
-            self._separator_potential[(edge[1], edge[0])] = separator_belief
 
     def _update_belief(self, edge, damping=0.0):
         """
