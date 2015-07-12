@@ -142,7 +142,7 @@ class FloodingProtocol(object):
     """
     Defines an update ordering where updates are done in both directions for each edge in the cluster graph.
     """
-    def __init__(self, model, max_iterations=20, converge_delta=10**-10):
+    def __init__(self, model, max_iterations=30, converge_delta=10**-10):
         """
         Constructor.
         :param model: The model.

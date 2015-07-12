@@ -18,7 +18,7 @@ class Inference(object):
         :param model: The model.
         """
         self._model = model
-        self.beliefs = {factor: DiscreteBelief(factor) for factor in self._model.factors}
+        self.beliefs = None
         self.parameters = None
         self._separator_potential = dict()  # edge to pairs of separator potentials
         self._set_up_separators()
@@ -89,6 +89,7 @@ class Inference(object):
         Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
         scheme.
         """
+        self.beliefs = {factor: DiscreteBelief(factor) for factor in self._model.factors}
         if parameters:
             self._set_parameters(parameters)
         else:

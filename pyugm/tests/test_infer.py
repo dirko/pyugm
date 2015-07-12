@@ -24,9 +24,13 @@ class TestInfer(GraphTestCase):
         a = DiscreteFactor([1, 2, 3], np.array(range(0, 8)).reshape((2, 2, 2)))
         b = DiscreteFactor([2, 3, 4], np.array(range(1, 9)).reshape((2, 2, 2)))
         model = Model([a, b])
-        inference = Inference(model)
+
+        class MockInference(Inference):
+            def _calibrate(self, evidence):
+                pass
+        inference = MockInference(model)
         evidence = {2: 1, 4: 0}
-        inference._set_evidence(evidence)
+        inference.calibrate(evidence)
 
         c = DiscreteBelief(variables=[1, 2, 3], data=np.array(range(0, 8)).reshape((2, 2, 2)))
         c.set_evidence(evidence)
@@ -41,10 +45,14 @@ class TestInfer(GraphTestCase):
         a = DiscreteFactor([1, 2], parameters=np.array([[1, 2], ['a', 0.0]], dtype=object))
         b = DiscreteFactor([2, 3], parameters=np.array([['b', 'c'], ['d', 'a']]))
         model = Model([a, b])
+
+        class MockInference(Inference):
+            def _calibrate(self, evidence):
+                pass
         print a.parameters
         new_parameters = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
-        inference = Inference(model)
-        inference._set_parameters(new_parameters)
+        inference = MockInference(model)
+        inference.calibrate(parameters=new_parameters)
 
         c = DiscreteFactor([1, 2], np.array([1, 2, np.exp(1), 0]).reshape((2, 2)))
         d = DiscreteFactor([2, 3], np.array([np.exp(2), np.exp(3), np.exp(4), np.exp(1)]).reshape((2, 2)))
