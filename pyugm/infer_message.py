@@ -14,12 +14,19 @@ class LoopyBeliefUpdateInference(Inference):
     """
     An inference object to calibrate the potentials.
     """
-    def __init__(self, model):
+    def __init__(self, model, update_order=None, damping=0.0, callback=None):
         """
         Constructor.
         :param model: The model.
+        :param update_order: A message update protocol. If `None`, `FloodingProtocol` is used.
+        :param damping: The damping to use on each iteration.
+        :param callback: A function to call with (the inference object, update order object) as parameters whenever
+                        the update order completes an iteration.
         """
         super(LoopyBeliefUpdateInference, self).__init__(model)
+        self._update_order = update_order
+        self._damping = damping
+        self._callback = callback
 
     def _update_belief(self, edge, damping=0.0):
         """
@@ -48,27 +55,26 @@ class LoopyBeliefUpdateInference(Inference):
 
         return average_change_per_cell
 
-    def calibrate(self, update_order=None, damping=0.0, callback=None):
+    def calibrate(self):
         """
         Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
         scheme.
-        :param update_order: A message update protocol. If `None`, `FloodingProtocol` is used.
         """
-        if not update_order:
-            update_order = FloodingProtocol(self._model)
+        if not self._update_order:
+            self._update_order = FloodingProtocol(self._model)
 
         average_change_per_cell = 0
-        edge = update_order.next_edge(average_change_per_cell)
-        previous_total_iterations = update_order.total_iterations
+        edge = self._update_order.next_edge(average_change_per_cell)
+        previous_total_iterations = self._update_order.total_iterations
         while edge:
-            average_change_per_cell = self._update_belief(edge, damping=damping)
-            if callback:
-                if update_order.total_iterations > previous_total_iterations:
-                    previous_total_iterations = update_order.total_iterations
-                    callback(self, update_order)
-            edge = update_order.next_edge(average_change_per_cell)
+            average_change_per_cell = self._update_belief(edge, damping=self._damping)
+            if self._callback:
+                if self._update_order.total_iterations > previous_total_iterations:
+                    previous_total_iterations = self._update_order.total_iterations
+                    self._callback(self, self._update_order)
+            edge = self._update_order.next_edge(average_change_per_cell)
 
-        return update_order.last_iteration_delta, update_order.total_iterations
+        return self._update_order.last_iteration_delta, self._update_order.total_iterations
 
 
 class ExhaustiveEnumeration(object):

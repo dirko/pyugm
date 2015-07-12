@@ -69,17 +69,17 @@ class LearnMrfParameters(object):
         :returns: The log-likelihood and a vector of derivatives.
         """
         self._update_order.reset()
-        inference = LoopyBeliefUpdateInference(self._model)
+        inference = LoopyBeliefUpdateInference(self._model, update_order=self._update_order)
         inference.set_parameters(self.parameters)
-        inference.calibrate(update_order=self._update_order)
+        inference.calibrate()
         log_z_total = inference.partition_approximation()
         model_expected_counts = self._accumulate_expected_counts(inference)
 
         self._update_order.reset()
-        inference = LoopyBeliefUpdateInference(self._model)
+        inference = LoopyBeliefUpdateInference(self._model, update_order=self._update_order)
         inference.set_parameters(self.parameters)
         inference.set_evidence(evidence=evidence)
-        inference.calibrate(update_order=self._update_order)
+        inference.calibrate()
         log_z_observed = inference.partition_approximation()
         empirical_expected_counts = self._accumulate_expected_counts(inference)
 

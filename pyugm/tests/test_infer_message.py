@@ -168,7 +168,8 @@ class TestBeliefUpdateInference(GraphTestCase):
         a = DiscreteFactor([0, 1])
         b = DiscreteFactor([1, 2])
         model = Model([a, b])
-        inference = LoopyBeliefUpdateInference(model)
+        update_order1 = FloodingProtocol(model=model, max_iterations=2)
+        inference = LoopyBeliefUpdateInference(model, update_order1)
         #                       0
         #                     0  1
         # Phi* = Sum_{0} 1 0 [ 1 1 ]  =  1 0 [ 2 ]
@@ -192,11 +193,10 @@ class TestBeliefUpdateInference(GraphTestCase):
         # Psi*** = Phi*** x Psi* = 2 0 [ 2 2 ]
         #          Phi**             1 [ 2 2 ]
         #
-        update_order1 = FloodingProtocol(model=model, max_iterations=2)
-        change0, iterations0 = inference.calibrate(update_order1)
-        update_order2 = FloodingProtocol(model=model, max_iterations=3)
-        change1, iterations1 = inference.calibrate(update_order2)
-        print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
+        change0, iterations0 = inference.calibrate()
+        #update_order2 = FloodingProtocol(model=model, max_iterations=3)
+        #change1, iterations1 = inference.calibrate(update_order2)
+        #print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
 
         final_a_data = np.array([[2, 2],
                                  [2, 2]], dtype='f64') / 8.0
@@ -219,15 +219,15 @@ class TestBeliefUpdateInference(GraphTestCase):
         for factor in model.factors:
             print 'before', factor, np.sum(factor.data)
 
-        inference = LoopyBeliefUpdateInference(model)
+        update_order = DistributeCollectProtocol(model)
+        inference = LoopyBeliefUpdateInference(model, update_order=update_order)
 
         exact_inference = ExhaustiveEnumeration(inference)
         # do first because update_beliefs changes the factors
         exhaustive_answer = exact_inference.exhaustively_enumerate()
         print 'Exhaust', np.sum(exhaustive_answer.data)
 
-        update_order = DistributeCollectProtocol(model)
-        change = inference.calibrate(update_order=update_order)
+        change = inference.calibrate()
         print change
 
         for factor in model.factors:
@@ -256,15 +256,15 @@ class TestBeliefUpdateInference(GraphTestCase):
         #
         model = Model([a, b, c, d, e, f])
         print 'edges', model.edges
-        inference = LoopyBeliefUpdateInference(model)
+        update_order = DistributeCollectProtocol(model)
+        inference = LoopyBeliefUpdateInference(model, update_order=update_order)
 
         exact_inference = ExhaustiveEnumeration(inference)
         # do first because update_beliefs changes the factors
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
         print 'bp'
-        update_order = DistributeCollectProtocol(model)
-        change = inference.calibrate(update_order=update_order)
+        change = inference.calibrate()
         print change
 
         for factor in model.factors:
@@ -300,7 +300,8 @@ class TestBeliefUpdateInference(GraphTestCase):
         model = Model(pairs + obs)
         parameters = {'same': 2.0, 'different': -1.0, 'obs_high': 0.0, 'obs_low': -0.0}
 
-        inference = LoopyBeliefUpdateInference(model)
+        update_order = FloodingProtocol(model, max_iterations=4)
+        inference = LoopyBeliefUpdateInference(model, update_order=update_order)
         inference.set_parameters(parameters=parameters)
         inference.set_evidence(evidence)
 
@@ -324,8 +325,7 @@ class TestBeliefUpdateInference(GraphTestCase):
             print ordering.total_iterations, change
 
         print 'bp'
-        update_order = FloodingProtocol(model, max_iterations=4)
-        change = inference.calibrate(update_order=update_order)
+        change = inference.calibrate()
         print 'change', change
 
         print np.sum(exhaustive_answer.data), np.sum(pairs[0].data)
@@ -363,13 +363,13 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         #
         #
         model = Model([a, b, c])
-        inference = LoopyBeliefUpdateInference(model)
+        update_order = LoopyDistributeCollectProtocol(model, max_iterations=40)
+        inference = LoopyBeliefUpdateInference(model, update_order=update_order)
 
         exact_inference = ExhaustiveEnumeration(inference)
         exhaustive_answer = exact_inference.exhaustively_enumerate()
 
-        update_order = LoopyDistributeCollectProtocol(model, max_iterations=40)
-        change = inference.calibrate(update_order=update_order)
+        change = inference.calibrate()
         print change
 
         for factor in model.factors:

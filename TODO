@@ -1,3 +1,6 @@
+## 11 July 2015
+Remove the set_parameters and set_evidence and add them as parameters to the calibrate method (more sklearn-like).
+
 ## 5 July 2015
 Move everything that mutates the model out to an Inference object - the model shouldn't change.
 Maybe it will be possible to re-use previous inference results with a slightly changed model?
