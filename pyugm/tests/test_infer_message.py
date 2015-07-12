@@ -193,7 +193,7 @@ class TestBeliefUpdateInference(GraphTestCase):
         # Psi*** = Phi*** x Psi* = 2 0 [ 2 2 ]
         #          Phi**             1 [ 2 2 ]
         #
-        change0, iterations0 = inference.calibrate()
+        inference.calibrate()
         #update_order2 = FloodingProtocol(model=model, max_iterations=3)
         #change1, iterations1 = inference.calibrate(update_order2)
         #print 'changes:', change0, change1, 'iterations:', iterations0, iterations1
@@ -222,9 +222,8 @@ class TestBeliefUpdateInference(GraphTestCase):
         update_order = DistributeCollectProtocol(model)
         inference = LoopyBeliefUpdateInference(model, update_order=update_order)
 
-        exact_inference = ExhaustiveEnumeration(inference)
-        # do first because update_beliefs changes the factors
-        exhaustive_answer = exact_inference.exhaustively_enumerate()
+        exact_inference = ExhaustiveEnumeration(model)
+        exhaustive_answer = exact_inference.calibrate().belief
         print 'Exhaust', np.sum(exhaustive_answer.data)
 
         change = inference.calibrate()
@@ -259,9 +258,8 @@ class TestBeliefUpdateInference(GraphTestCase):
         update_order = DistributeCollectProtocol(model)
         inference = LoopyBeliefUpdateInference(model, update_order=update_order)
 
-        exact_inference = ExhaustiveEnumeration(inference)
-        # do first because update_beliefs changes the factors
-        exhaustive_answer = exact_inference.exhaustively_enumerate()
+        exact_inference = ExhaustiveEnumeration(model)
+        exhaustive_answer = exact_inference.calibrate().belief
 
         print 'bp'
         change = inference.calibrate()
@@ -302,45 +300,17 @@ class TestBeliefUpdateInference(GraphTestCase):
 
         update_order = FloodingProtocol(model, max_iterations=4)
         inference = LoopyBeliefUpdateInference(model, update_order=update_order)
-        inference.set_parameters(parameters=parameters)
-        inference.set_evidence(evidence)
+        inference.calibrate(evidence, parameters)
 
-        print 'enumerating'
-
-        for i in xrange(N):
-            expected_marginal = inference.get_marginals(i)[0]
-            for actual_marginal in inference.get_marginals(i):
-                print i, evidence[i + N], expected_marginal.normalized_data, actual_marginal.normalized_data, \
-                    sum(abs(expected_marginal.normalized_data - actual_marginal.normalized_data))
-        print '-' * 20
-        for factor in model.factors:
-            print factor, factor.data
-        print '-' * 10
-        exact_inference = ExhaustiveEnumeration(inference)
-        # do first because update_beliefs changes the factors
-        exhaustive_answer = exact_inference.exhaustively_enumerate()
-
-        def reporter(ordering):
-            change = ordering.current_iteration_delta
-            print ordering.total_iterations, change
-
-        print 'bp'
-        change = inference.calibrate()
-        print 'change', change
-
-        print np.sum(exhaustive_answer.data), np.sum(pairs[0].data)
-        for i in xrange(N):
-            expected_marginal = exhaustive_answer.marginalize([i])
-            for actual_marginal in inference.get_marginals(i):
-                print i, evidence[i + N], expected_marginal.normalized_data, actual_marginal.normalized_data,\
-                    sum(abs(expected_marginal.normalized_data - actual_marginal.normalized_data))
-        print '-' * 20
-        for factor in inference.beliefs.values():
-            print factor, factor.data
+        exact_inference = ExhaustiveEnumeration(model)
+        exhaustive_answer = exact_inference.calibrate(evidence, parameters).belief
 
         for i in xrange(N):
             expected_marginal = exhaustive_answer.marginalize([i])
             for actual_marginal in inference.get_marginals(i):
+                print i
+                print expected_marginal.normalized_data
+                print actual_marginal.normalized_data
                 assert_array_almost_equal(expected_marginal.normalized_data, actual_marginal.normalized_data)
 
         expected_ln_Z = np.log(exhaustive_answer.data.sum())
@@ -365,12 +335,10 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         model = Model([a, b, c])
         update_order = LoopyDistributeCollectProtocol(model, max_iterations=40)
         inference = LoopyBeliefUpdateInference(model, update_order=update_order)
+        inference.calibrate()
 
-        exact_inference = ExhaustiveEnumeration(inference)
-        exhaustive_answer = exact_inference.exhaustively_enumerate()
-
-        change = inference.calibrate()
-        print change
+        exact_inference = ExhaustiveEnumeration(model)
+        exhaustive_answer = exact_inference.calibrate().belief
 
         for factor in model.factors:
             print factor, np.sum(factor.data)
@@ -434,9 +402,8 @@ class TestLoopyBeliefUpdateInference(GraphTestCase):
         # 1 2 1 | 6x1=6
 
         model = Model([a, b])
-        inference = Inference(model)
-        exact_inference = ExhaustiveEnumeration(inference)
-        c = exact_inference.exhaustively_enumerate()
+        exact_inference = ExhaustiveEnumeration(model)
+        c = exact_inference.calibrate().belief
 
         d = DiscreteFactor([(0, 2), (1, 3), (2, 2)])
         d._data = np.array([1, 2, 2, 4, 3, 6, 8, 4, 10, 5, 12, 6]).reshape(2, 3, 2)

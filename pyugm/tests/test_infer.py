@@ -26,7 +26,7 @@ class TestInfer(GraphTestCase):
         model = Model([a, b])
         inference = Inference(model)
         evidence = {2: 1, 4: 0}
-        inference.set_evidence(evidence)
+        inference._set_evidence(evidence)
 
         c = DiscreteBelief(variables=[1, 2, 3], data=np.array(range(0, 8)).reshape((2, 2, 2)))
         c.set_evidence(evidence)
@@ -44,7 +44,7 @@ class TestInfer(GraphTestCase):
         print a.parameters
         new_parameters = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         inference = Inference(model)
-        inference.set_parameters(new_parameters)
+        inference._set_parameters(new_parameters)
 
         c = DiscreteFactor([1, 2], np.array([1, 2, np.exp(1), 0]).reshape((2, 2)))
         d = DiscreteFactor([2, 3], np.array([np.exp(2), np.exp(3), np.exp(4), np.exp(1)]).reshape((2, 2)))

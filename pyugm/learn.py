@@ -70,16 +70,13 @@ class LearnMrfParameters(object):
         """
         self._update_order.reset()
         inference = LoopyBeliefUpdateInference(self._model, update_order=self._update_order)
-        inference.set_parameters(self.parameters)
-        inference.calibrate()
+        inference.calibrate(parameters=self.parameters)
         log_z_total = inference.partition_approximation()
         model_expected_counts = self._accumulate_expected_counts(inference)
 
         self._update_order.reset()
         inference = LoopyBeliefUpdateInference(self._model, update_order=self._update_order)
-        inference.set_parameters(self.parameters)
-        inference.set_evidence(evidence=evidence)
-        inference.calibrate()
+        inference.calibrate(evidence, parameters=self.parameters)
         log_z_observed = inference.partition_approximation()
         empirical_expected_counts = self._accumulate_expected_counts(inference)
 

@@ -55,7 +55,7 @@ class LoopyBeliefUpdateInference(Inference):
 
         return average_change_per_cell
 
-    def calibrate(self):
+    def _calibrate(self, evidence):
         """
         Calibrate all the factors in the model by running belief updates according to the `update_order` ordering
         scheme.
@@ -77,23 +77,30 @@ class LoopyBeliefUpdateInference(Inference):
         return self._update_order.last_iteration_delta, self._update_order.total_iterations
 
 
-class ExhaustiveEnumeration(object):
+class ExhaustiveEnumeration(Inference):
     """
     A test inference object to build the complete potential table.
     """
-    def __init__(self, inference):
+    def __init__(self, model):
         """
         Constructor.
-        :param inference: The model.
+        :param model: The model.
         """
-        self._inference = inference
+        super(ExhaustiveEnumeration, self).__init__(model)
+        self.belief = None
+
+    def _calibrate(self, evidence):
+        """ Compute the exact probability table.  """
+        belief = self.exhaustively_enumerate()
+        self.beliefs = {factor: belief for factor, _ in self.beliefs.items()}
+        self.belief = belief
 
     def exhaustively_enumerate(self):
         """
         Compute the complete probability table by enumerating all variable instantiations.
         :returns: A factor of all the variables in the original model.
         """
-        variables = [(key, value) for key, value in self._inference._model.cardinalities.items()]
+        variables = [(key, value) for key, value in self._model.cardinalities.items()]
         table_shape = [cardinality for _, cardinality in variables]
         table_size = numpy.prod(table_shape)
         if table_size > 10**7:
@@ -122,7 +129,7 @@ class ExhaustiveEnumeration(object):
         data = numpy.ones(table_shape)
         done = False
         while not done:
-            for belief in self._inference.beliefs.values():
+            for belief in self.beliefs.values():
                 potential_value = belief.get_potential([tuple(var) for var in instantiation])
                 data[tuple(var[1] for var in instantiation)] *= potential_value
             done, instantiation = _tick_instantiation(instantiation)

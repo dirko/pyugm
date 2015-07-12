@@ -46,9 +46,8 @@ class TestLearnMrfParameters(unittest.TestCase):
         model = Model([a, b])
         evidence = {1: 0, 3: 1}
 
-        inference = LoopyBeliefUpdateInference(model)
-        exact_inference = ExhaustiveEnumeration(inference)
-        c = exact_inference.exhaustively_enumerate()
+        exact_inference = ExhaustiveEnumeration(model)
+        c = exact_inference.calibrate(evidence).belief
         print c
         print c.data
         print c.get_potential(evidence.items())

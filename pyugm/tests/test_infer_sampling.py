@@ -26,8 +26,8 @@ class TestGibbsSampling(unittest.TestCase):
         a = DiscreteFactor([(1, 2)], data=potential_data)
 
         model = Model([a])
-        sampler = GibbsSamplingInference(model)
-        sampler.calibrate(samples=100000)
+        sampler = GibbsSamplingInference(model, samples=100000)
+        sampler.calibrate()
 
         for belief in sampler.get_marginals(1):
             print belief.data
@@ -39,12 +39,11 @@ class TestGibbsSampling(unittest.TestCase):
         c = DiscreteFactor([2, 0], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
 
         model = Model([a, b, c])
-        inference = GibbsSamplingInference(model)
+        inference = GibbsSamplingInference(model, samples=10000)
+        inference.calibrate()
 
-        exact_inference = ExhaustiveEnumeration(inference)
-        exhaustive_answer = exact_inference.exhaustively_enumerate()
-
-        inference.calibrate(samples=10000)
+        exact_inference = ExhaustiveEnumeration(model)
+        exhaustive_answer = exact_inference.calibrate().belief
 
         for factor in model.factors:
             print factor, np.sum(factor.data)
@@ -70,14 +69,14 @@ class TestGibbsSampling(unittest.TestCase):
         b = DiscreteFactor([1, 2], data=np.array([[3, 2], [1, 2]], dtype=np.float64))
         c = DiscreteFactor([2, 0], data=np.array([[1, 2], [3, 4]], dtype=np.float64))
 
+        evidence = {0: 0}
+
         model = Model([a, b, c])
-        inference = GibbsSamplingInference(model)
-        inference.set_evidence({0: 0})
+        inference = GibbsSamplingInference(model, samples=10000)
+        inference.calibrate(evidence)
 
-        exact_inference = ExhaustiveEnumeration(inference)
-        exhaustive_answer = exact_inference.exhaustively_enumerate()
-
-        inference.calibrate(samples=10000)
+        exact_inference = ExhaustiveEnumeration(model)
+        exhaustive_answer = exact_inference.calibrate(evidence).belief
 
         for variable in model.variables:
             for factor in inference.get_marginals(variable):
